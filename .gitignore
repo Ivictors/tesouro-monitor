@@ -1,0 +1,35 @@
+# Variaveis locais e arquivos de segredo
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.jks
+*.keystore
+secrets/
+.secrets/
+
+# Configuracao local Spring: publicar somente os arquivos explicitamente marcados como exemplo
+**/*.properties
+**/*.yml
+**/*.yaml
+!**/*-example.properties
+!**/*-example.yml
+!**/*-example.yaml
+
+# Maven e compilacao
+target/
+build/
+out/
+
+# IDEs e sistema operacional
+.idea/
+.vscode/
+*.iml
+.classpath
+.project
+.settings/
+.DS_Store
+Thumbs.db

@@ -1,0 +1,10 @@
+# Exemplo do perfil prod. Configure credenciais verdadeiras fora do repositorio.
+spring:
+  datasource:
+    url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/tesourodb}
+    username: ${DATABASE_USERNAME:usuario_exemplo}
+    password: ${DATABASE_PASSWORD:senha_ficticia}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: validate

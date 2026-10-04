@@ -1,0 +1,23 @@
+# Exemplo para desenvolvimento local. Copie para application.yml (ignorado pelo Git).
+server:
+  port: 8080
+
+spring:
+  application:
+    name: tesouro-monitor
+  profiles:
+    active: dev
+  datasource:
+    url: jdbc:h2:mem:tesourodb
+    driver-class-name: org.h2.Driver
+    username: sa
+    password: MOCK_ONLY
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+
+tesouro:
+  api:
+    base-url: ${TESOURO_API_BASE_URL:https://api.example.test}
+    titulos-path: ${TESOURO_API_TITULOS_PATH:/v1/titulos}

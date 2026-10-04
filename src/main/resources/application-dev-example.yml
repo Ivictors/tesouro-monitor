@@ -1,0 +1,5 @@
+# Exemplo local para o perfil dev; valores nao sao credenciais reais.
+spring:
+  h2:
+    console:
+      enabled: true
