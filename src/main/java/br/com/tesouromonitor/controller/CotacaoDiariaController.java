@@ -7,11 +7,14 @@ import br.com.tesouromonitor.repository.AtivoCarteiraRepository;
 import br.com.tesouromonitor.service.AtivoCarteiraNaoEncontradoException;
 import br.com.tesouromonitor.service.CotacaoDiariaService;
 import br.com.tesouromonitor.service.CotacaoNaoEncontradaException;
+import br.com.tesouromonitor.service.IntervaloDataInvalidoException;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
+import java.time.LocalDate;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.http.ResponseEntity;
 import org.springframework.validation.annotation.Validated;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -36,9 +39,15 @@ public class CotacaoDiariaController {
     public CotacaoHistoricoResponseDTO historico(
             @PathVariable Long ativoId,
             @RequestParam(defaultValue = "0") @Min(0) int pagina,
-            @RequestParam(defaultValue = "30") @Min(1) @Max(100) int tamanho) {
+            @RequestParam(defaultValue = "30") @Min(1) @Max(100) int tamanho,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataInicio,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate dataFim) {
+        if (dataInicio != null && dataFim != null && dataInicio.isAfter(dataFim)) {
+            throw new IntervaloDataInvalidoException();
+        }
         AtivoCarteira ativo = encontrarAtivo(ativoId);
-        var page = cotacaoService.historico(ativo.getNomeTitulo(), PageRequest.of(pagina, tamanho))
+        var page = cotacaoService.historico(ativo.getNomeTitulo(), dataInicio, dataFim,
+                        PageRequest.of(pagina, tamanho))
                 .map(CotacaoDiariaResponseDTO::from);
         return CotacaoHistoricoResponseDTO.from(page);
     }

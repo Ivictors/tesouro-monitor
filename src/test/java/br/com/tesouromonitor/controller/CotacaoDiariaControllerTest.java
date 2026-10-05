@@ -65,6 +65,29 @@ class CotacaoDiariaControllerTest {
     }
 
     @Test
+    void filtraHistoricoPorIntervaloDeDatas() throws Exception {
+        saveQuote(LocalDate.of(2026, 10, 1), "19910.00");
+        saveQuote(LocalDate.of(2026, 10, 2), "19924.17");
+        saveQuote(LocalDate.of(2026, 10, 3), "19930.00");
+
+        mockMvc.perform(get("/api/ativos/{id}/cotacoes", ativoId)
+                        .param("dataInicio", "2026-10-02")
+                        .param("dataFim", "2026-10-02"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.cotacoes[0].dataCotacao").value("2026-10-02"));
+    }
+
+    @Test
+    void rejeitaIntervaloDeDatasInvertido() throws Exception {
+        mockMvc.perform(get("/api/ativos/{id}/cotacoes", ativoId)
+                        .param("dataInicio", "2026-10-03")
+                        .param("dataFim", "2026-10-01"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.title").value("Intervalo de datas inválido"));
+    }
+
+    @Test
     void cotacaoAtualAusenteRetornaErroExplicito() throws Exception {
         mockMvc.perform(get("/api/ativos/{id}/cotacoes/atual", ativoId))
                 .andExpect(status().isNotFound())

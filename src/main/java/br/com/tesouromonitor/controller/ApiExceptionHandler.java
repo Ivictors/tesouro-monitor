@@ -1,6 +1,7 @@
 package br.com.tesouromonitor.controller;
 
 import br.com.tesouromonitor.service.AtivoCarteiraNaoEncontradoException;
+import br.com.tesouromonitor.service.IntervaloDataInvalidoException;
 import br.com.tesouromonitor.service.CotacaoNaoEncontradaException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
@@ -25,6 +26,13 @@ public class ApiExceptionHandler {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
         problem.setTitle("Cotação indisponível");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(IntervaloDataInvalidoException.class)
+    public ResponseEntity<ProblemDetail> tratarIntervaloInvalido(IntervaloDataInvalidoException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.BAD_REQUEST, exception.getMessage());
+        problem.setTitle("Intervalo de datas inválido");
+        return ResponseEntity.badRequest().body(problem);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

@@ -5,6 +5,7 @@ import br.com.tesouromonitor.dto.TituloDTO;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
 import java.util.List;
 import java.util.Optional;
+import java.time.LocalDate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.data.domain.Page;
@@ -44,6 +45,23 @@ public class CotacaoDiariaService {
 
     @Transactional(readOnly = true)
     public Page<CotacaoDiaria> historico(String nomeAtivo, Pageable pageable) {
+        return historico(nomeAtivo, null, null, pageable);
+    }
+
+    @Transactional(readOnly = true)
+    public Page<CotacaoDiaria> historico(String nomeAtivo, LocalDate inicio, LocalDate fim, Pageable pageable) {
+        if (inicio != null && fim != null) {
+            return repository.findByNomeAtivoAndDataCotacaoBetweenOrderByDataCotacaoDesc(
+                    nomeAtivo, inicio, fim, pageable);
+        }
+        if (inicio != null) {
+            return repository.findByNomeAtivoAndDataCotacaoGreaterThanEqualOrderByDataCotacaoDesc(
+                    nomeAtivo, inicio, pageable);
+        }
+        if (fim != null) {
+            return repository.findByNomeAtivoAndDataCotacaoLessThanEqualOrderByDataCotacaoDesc(
+                    nomeAtivo, fim, pageable);
+        }
         return repository.findByNomeAtivoOrderByDataCotacaoDesc(nomeAtivo, pageable);
     }
 }
