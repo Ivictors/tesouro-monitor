@@ -24,3 +24,5 @@ Em outro terminal, execute `cd frontend`, `npm ci` e `npm run dev`. O Vite encam
 ## Seguranca
 
 O `.gitignore` exclui `.env`, configurações locais `.properties`/`.yml`/`.yaml`, artefatos de build, chaves privadas e arquivos de keystore. Somente arquivos com `-example` no nome são permitidos para configuração de exemplo.
+
+O MVP é single-user e local: o backend escuta em `127.0.0.1` por padrão. Não exponha a porta 8080 à rede ou à internet. Acesso remoto exige autenticação e autorização, ainda não implementadas.

@@ -8,12 +8,11 @@
 - Cliente HTTP usa `WebClient`; não introduzir `RestTemplate`.
 - Persistência local H2 no perfil `dev` e PostgreSQL no perfil `prod`.
 - Dependências devem ficar limitadas às tecnologias listadas no pedido. Não adicionar Telegram até existir requisito para essa integração.
-- Regras de negócio complexas permanecem marcadas com `// TODO: [Issue #X]` até receberem issue identificável.
+- Regras de negócio sem decisão aprovada ficam marcadas com `// TODO: [Issue #X]`; após aprovação, documente a regra e remova o TODO ao implementá-la com testes.
 
-## Contratos pendentes
-- O SDD/API não foi encontrado no repositório. O contrato JSON, endpoint público, nomes exatos dos campos e semântica dos valores precisam ser confirmados antes de fechar o mapeamento da integração.
-- O DTO inicial usa nomes convencionais provisórios documentados nos critérios de aceitação. Não tratar esses nomes como contrato validado.
-- A associação entre título externo, ativo da carteira e os dois preços (`precoCompraAtual` e `precoResgateAtual`) não foi especificada.
+## Integração documentada
+- A fonte, os campos CSV e a semântica de PU Compra/PU Venda estão em `docs/integracao-tesouro.md`.
+- O cliente mapeia PU Venda para `CotacaoDiaria.precoResgateAtual`; a regra de valorização aprovada está em `docs/regras-monitoramento.md`.
 
 ## Decisão de produto atual
 - A regra aprovada está em `docs/regras-monitoramento.md`: PU Venda como valor de resgate, limite de 5% e alertas apenas no cruzamento ascendente.
