@@ -23,6 +23,11 @@ secrets/
 target/
 build/
 out/
+node_modules/
+dist/
+coverage/
+.vite/
+*.tsbuildinfo
 
 # IDEs e sistema operacional
 .idea/

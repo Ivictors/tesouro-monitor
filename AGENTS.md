@@ -5,6 +5,11 @@
 - Use Spring Web, WebFlux apenas para `WebClient`, Spring Data JPA, H2 no perfil `dev`, PostgreSQL no perfil `prod` e Spring Scheduling.
 - Lombok e anotacoes geradoras de codigo sao proibidos. Entidades devem declarar construtores e acessores manualmente; DTOs de integracao devem ser records.
 
+## Frontend
+- O app em `frontend/` usa React e TypeScript; mantenha chamadas HTTP em `src/api/` e nao calcule regras financeiras na UI.
+- Use o proxy Vite para `/api` em desenvolvimento; valide alteracoes com `npm test` e `npm run build`.
+- Nunca versione `.env`, dependencias instaladas ou arquivos de build.
+
 ## Arquitetura e qualidade
 - Mantenha as responsabilidades nos pacotes `domain`, `dto`, `repository`, `service`, `scheduler` e `config`.
 - Prefira construtor explícito para injeção, dependências pequenas e interfaces nos limites que possam receber novas integrações.
