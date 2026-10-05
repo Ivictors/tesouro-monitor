@@ -5,11 +5,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
-@Table(name = "cotacoes_diarias")
+@Table(name = "cotacoes_diarias", uniqueConstraints = {
+        @UniqueConstraint(name = "uk_cotacao_ativo_data", columnNames = {"nome_ativo", "data_cotacao"})
+})
 public class CotacaoDiaria {
 
     @Id
