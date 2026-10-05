@@ -16,8 +16,15 @@ spring:
     hibernate:
       ddl-auto: update
     open-in-view: false
+  flyway:
+    enabled: false
 
 tesouro:
   api:
     base-url: ${TESOURO_API_BASE_URL:https://api.example.test}
-    titulos-path: ${TESOURO_API_TITULOS_PATH:/v1/titulos}
+    titulos-path: ${TESOURO_API_TITULOS_PATH:/v1/mock/titulos.csv}
+    connection-timeout-ms: ${TESOURO_API_CONNECTION_TIMEOUT_MS:3000}
+    response-timeout-seconds: ${TESOURO_API_RESPONSE_TIMEOUT_SECONDS:30}
+    max-in-memory-mb: ${TESOURO_API_MAX_IN_MEMORY_MB:32}
+  scheduler:
+    zone: ${TESOURO_SCHEDULER_ZONE:America/Sao_Paulo}

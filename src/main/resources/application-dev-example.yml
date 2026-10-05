@@ -1,5 +1,7 @@
 # Exemplo local para o perfil dev; valores nao sao credenciais reais.
 spring:
+  flyway:
+    enabled: false
   h2:
     console:
       enabled: true
