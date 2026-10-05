@@ -11,10 +11,11 @@
 - Valores em reais e percentual são arredondados para duas casas decimais com `HALF_UP`.
 - Uma posição sem preço ou quantidade positiva, ou sem PU Venda válido, não recebe cálculo nem alerta.
 - Deságio e equilíbrio são exibidos como variação, mas nunca geram alerta.
-- O limite padrão é 5%, configurável por `TESOURO_LIMITE_AGIO_PERCENTUAL`.
+- O limite padrão é 5%, configurável por `TESOURO_LIMITE_AGIO_PERCENTUAL` (a configuração deve permanecer maior que zero).
 - Um alerta é criado quando a variação passa de abaixo de 5% para igual ou acima de 5%. Na primeira cotação disponível, considera-se a variação anterior como 0%.
 - Enquanto a posição permanecer em 5% ou mais, não há alertas repetidos. Se cair abaixo do limite e voltar a cruzá-lo, um novo alerta pode ser criado.
 - Uma cotação e posição geram no máximo um alerta, mesmo que a sincronização seja repetida.
+- O registro do alerta guarda a regra `VALORIZACAO_ACIMA_LIMITE`, o percentual observado e o limite numérico usado.
 - O MVP não calcula impostos, taxas ou lucro líquido. A variação é estimada e bruta.
 - Alertas ficam disponíveis na aplicação. Telegram e outros canais externos ficam fora do MVP.
 

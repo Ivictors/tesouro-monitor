@@ -1,6 +1,7 @@
 package br.com.tesouromonitor.controller;
 
 import br.com.tesouromonitor.service.AtivoCarteiraNaoEncontradoException;
+import br.com.tesouromonitor.service.AlertaNaoEncontradoException;
 import br.com.tesouromonitor.service.IntervaloDataInvalidoException;
 import br.com.tesouromonitor.service.CotacaoNaoEncontradaException;
 import org.springframework.http.HttpStatus;
@@ -25,6 +26,13 @@ public class ApiExceptionHandler {
     public ResponseEntity<ProblemDetail> tratarCotacaoAusente(CotacaoNaoEncontradaException exception) {
         ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
         problem.setTitle("Cotação indisponível");
+        return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
+    }
+
+    @ExceptionHandler(AlertaNaoEncontradoException.class)
+    public ResponseEntity<ProblemDetail> tratarAlertaNaoEncontrado(AlertaNaoEncontradoException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.NOT_FOUND, exception.getMessage());
+        problem.setTitle("Alerta não encontrado");
         return ResponseEntity.status(HttpStatus.NOT_FOUND).body(problem);
     }
 

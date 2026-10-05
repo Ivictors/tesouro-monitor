@@ -1,5 +1,6 @@
 # Exemplo para desenvolvimento local. Copie para application.yml (ignorado pelo Git).
 server:
+  address: 127.0.0.1
   port: 8080
 
 spring:
@@ -28,3 +29,5 @@ tesouro:
     max-in-memory-mb: ${TESOURO_API_MAX_IN_MEMORY_MB:32}
   scheduler:
     zone: ${TESOURO_SCHEDULER_ZONE:America/Sao_Paulo}
+  monitoramento:
+    limite-agio-percentual: ${TESOURO_LIMITE_AGIO_PERCENTUAL:5.00}

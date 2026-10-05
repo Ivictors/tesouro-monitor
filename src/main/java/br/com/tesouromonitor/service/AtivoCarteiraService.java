@@ -4,6 +4,7 @@ import br.com.tesouromonitor.domain.AtivoCarteira;
 import br.com.tesouromonitor.dto.AtivoCarteiraRequestDTO;
 import br.com.tesouromonitor.dto.AtivoCarteiraResponseDTO;
 import br.com.tesouromonitor.repository.AtivoCarteiraRepository;
+import br.com.tesouromonitor.repository.AlertaMonitoramentoRepository;
 import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +14,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class AtivoCarteiraService {
 
     private final AtivoCarteiraRepository repository;
+    private final AlertaMonitoramentoRepository alertaRepository;
 
-    public AtivoCarteiraService(AtivoCarteiraRepository repository) {
+    public AtivoCarteiraService(AtivoCarteiraRepository repository,
+                                AlertaMonitoramentoRepository alertaRepository) {
         this.repository = repository;
+        this.alertaRepository = alertaRepository;
     }
 
     @Transactional(readOnly = true)
@@ -45,6 +49,7 @@ public class AtivoCarteiraService {
     }
 
     public void remover(Long id) {
+        alertaRepository.deleteByAtivoId(id);
         repository.delete(encontrar(id));
     }
 

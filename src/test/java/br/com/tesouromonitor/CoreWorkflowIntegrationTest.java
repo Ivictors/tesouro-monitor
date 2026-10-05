@@ -9,6 +9,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import br.com.tesouromonitor.dto.TesouroResponseDTO;
 import br.com.tesouromonitor.dto.TituloDTO;
 import br.com.tesouromonitor.repository.AtivoCarteiraRepository;
+import br.com.tesouromonitor.repository.AlertaMonitoramentoRepository;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
 import br.com.tesouromonitor.scheduler.TesouroSyncScheduler;
 import br.com.tesouromonitor.service.TesouroDiretoClient;
@@ -39,6 +40,9 @@ class CoreWorkflowIntegrationTest {
     private CotacaoDiariaRepository cotacaoRepository;
 
     @Autowired
+    private AlertaMonitoramentoRepository alertaRepository;
+
+    @Autowired
     private TesouroSyncScheduler scheduler;
 
     @MockitoBean
@@ -46,6 +50,7 @@ class CoreWorkflowIntegrationTest {
 
     @BeforeEach
     void limparDados() {
+        alertaRepository.deleteAll();
         cotacaoRepository.deleteAll();
         ativoRepository.deleteAll();
     }
@@ -75,5 +80,41 @@ class CoreWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.nomeAtivo").value(title.nomeAtivo()))
                 .andExpect(jsonPath("$.dataCotacao").value("2026-10-02"))
                 .andExpect(jsonPath("$.precoResgateAtual").value(19924.17));
+
+        mockMvc.perform(get("/api/ativos/resumo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.totalInvestido").value(4985.78))
+                .andExpect(jsonPath("$.valorAtualEstimado").value(4981.04))
+                .andExpect(jsonPath("$.variacaoPercentual").value(-0.10))
+                .andExpect(jsonPath("$.posicoes[0].puVenda").value(19924.17));
+
+        mockMvc.perform(get("/api/alertas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(0));
+    }
+
+    @Test
+    void geraAlertaNoCruzamentoDoLimiteEConsultaNaApi() throws Exception {
+        String request = """
+                {"nomeTitulo":"Tesouro Selic - 2031-03-01","dataCompra":"2026-01-10",
+                "taxaContratada":0.1,"precoCompra":100.00,"quantidade":2.00}
+                """;
+        mockMvc.perform(post("/api/ativos").contentType(MediaType.APPLICATION_JSON).content(request))
+                .andExpect(status().isCreated());
+
+        TituloDTO title = new TituloDTO("Tesouro Selic", LocalDate.of(2031, 3, 1),
+                LocalDate.of(2026, 10, 2), new BigDecimal("0.09"), new BigDecimal("0.10"),
+                new BigDecimal("104.00"), new BigDecimal("105.00"), new BigDecimal("104.00"));
+        when(tesouroDiretoClient.buscarTitulos()).thenReturn(Mono.just(new TesouroResponseDTO(List.of(title))));
+
+        scheduler.sincronizarCotacoes();
+        scheduler.sincronizarCotacoes();
+
+        mockMvc.perform(get("/api/alertas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.alertas[0].percentualObservado").value(5.00))
+                .andExpect(jsonPath("$.alertas[0].regraAplicada").value("VALORIZACAO_ACIMA_LIMITE"))
+                .andExpect(jsonPath("$.alertas[0].lido").value(false));
     }
 }
