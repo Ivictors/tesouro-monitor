@@ -14,3 +14,7 @@
 - O SDD/API não foi encontrado no repositório. O contrato JSON, endpoint público, nomes exatos dos campos e semântica dos valores precisam ser confirmados antes de fechar o mapeamento da integração.
 - O DTO inicial usa nomes convencionais provisórios documentados nos critérios de aceitação. Não tratar esses nomes como contrato validado.
 - A associação entre título externo, ativo da carteira e os dois preços (`precoCompraAtual` e `precoResgateAtual`) não foi especificada.
+
+## Decisão de produto atual
+- A regra aprovada está em `docs/regras-monitoramento.md`: PU Venda como valor de resgate, limite de 5% e alertas apenas no cruzamento ascendente.
+- O modo inicial é single-user/local. Configure bind para `127.0.0.1`; nunca exponha diretamente a aplicação sem implementar autenticação/autorização.
