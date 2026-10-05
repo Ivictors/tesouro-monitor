@@ -9,6 +9,61 @@ export type Ativo = {
 
 export type AtivoInput = Omit<Ativo, 'id'>
 
+export type Posicao = {
+  ativo: Ativo
+  dataCotacao: string | null
+  puVenda: number | null
+  valorInvestido: number | null
+  valorAtualEstimado: number | null
+  variacaoValor: number | null
+  variacaoPercentual: number | null
+}
+
+export type ResumoCarteira = {
+  totalInvestido: number | null
+  valorAtualEstimado: number | null
+  variacaoValor: number | null
+  variacaoPercentual: number | null
+  cotacoesIndisponiveis: number
+  posicoes: Posicao[]
+}
+
+export type Cotacao = {
+  id: number
+  nomeAtivo: string
+  dataCotacao: string
+  taxaAtual: number
+  precoCompraAtual: number
+  precoResgateAtual: number
+}
+
+export type Historico = {
+  cotacoes: Cotacao[]
+  pagina: number
+  tamanho: number
+  total: number
+}
+
+export type Alerta = {
+  id: number
+  ativoId: number
+  nomeAtivo: string
+  dataCotacao: string
+  percentualObservado: number
+  regraAplicada: string
+  limitePercentual: number
+  criadoEm: string
+  lido: boolean
+  lidoEm: string | null
+}
+
+export type AlertasRecentes = {
+  alertas: Alerta[]
+  pagina: number
+  tamanho: number
+  total: number
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -33,6 +88,18 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 
 export const ativosApi = {
   listar: () => request<Ativo[]>('/api/ativos'),
+  resumo: () => request<ResumoCarteira>('/api/ativos/resumo'),
+  historico: (id: number, dataInicio: string, dataFim: string, pagina = 0) => {
+    const params = new URLSearchParams()
+    params.set('pagina', String(pagina))
+    params.set('tamanho', '30')
+    if (dataInicio) params.set('dataInicio', dataInicio)
+    if (dataFim) params.set('dataFim', dataFim)
+    const query = params.size ? `?${params.toString()}` : ''
+    return request<Historico>(`/api/ativos/${id}/cotacoes${query}`)
+  },
+  alertas: () => request<AlertasRecentes>('/api/alertas?tamanho=20'),
+  marcarAlertaComoLido: (id: number) => request<Alerta>(`/api/alertas/${id}/lido`, { method: 'PATCH' }),
   criar: (ativo: AtivoInput) => request<Ativo>('/api/ativos', {
     method: 'POST',
     body: JSON.stringify(ativo),

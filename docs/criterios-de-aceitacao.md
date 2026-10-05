@@ -28,11 +28,11 @@
 - [ ] Testes automatizados cobrem DTOs e comportamento independente de rede; testes não exigem credenciais externas.
 
 ## Monitoramento e acesso
-- [ ] Cálculo usa quantidade, arredonda em duas casas `HALF_UP` e trata valores nulos ou não positivos.
-- [ ] Apenas cruzamento ascendente do limite configurado gera alerta; deságio não gera alerta.
-- [ ] Alertas são deduplicados por ativo/cotação, podem ser listados e marcados como lidos.
-- [ ] O painel apresenta totais, cotações indisponíveis, histórico filtrável por datas e alertas recentes.
-- [ ] O modo MVP single-user escuta apenas em `127.0.0.1` e não está documentado como apropriado para exposição pública.
+- [x] Cálculo usa quantidade, arredonda em duas casas `HALF_UP` e trata valores nulos ou não positivos.
+- [x] Apenas cruzamento ascendente do limite configurado gera alerta; deságio não gera alerta.
+- [x] Alertas são deduplicados por ativo/cotação, podem ser listados e marcados como lidos.
+- [x] O painel apresenta totais, cotações indisponíveis, histórico filtrável por datas e alertas recentes.
+- [x] O modo MVP single-user escuta apenas em `127.0.0.1` e está documentado como não apropriado para exposição pública.
 
 ## Pendência bloqueadora da integração
 - [ ] Registrar endpoint oficial, amostra JSON e mapeamento aprovado para nome, taxa, valor de compra e valor de resgate.
