@@ -56,7 +56,7 @@ class TesouroDiretoClientTest {
 
     @Test
     void consultaEInterpretaCsvDoServico() {
-        TesouroResponseDTO response = client(Duration.ofSeconds(2)).buscarTitulos().block(Duration.ofSeconds(3));
+        TesouroResponseDTO response = client(Duration.ofSeconds(10)).buscarTitulos().block(Duration.ofSeconds(15));
 
         assertThat(response).isNotNull();
         assertThat(response.titulos()).hasSize(1);

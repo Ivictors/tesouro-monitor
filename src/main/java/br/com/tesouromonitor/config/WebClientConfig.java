@@ -12,9 +12,12 @@ import org.springframework.web.reactive.function.client.WebClient;
 @Configuration
 public class WebClientConfig {
 
+    private static final String URL_BASE_FONTE_PADRAO = "https://www.tesourotransparente.gov.br";
+
     @Bean
     public WebClient tesouroWebClient(WebClient.Builder builder,
-                                      @Value("${tesouro.api.base-url}") String baseUrl,
+                                      @Value("${tesouro.api.base-url:" + URL_BASE_FONTE_PADRAO + "}")
+                                      String baseUrl,
                                       @Value("${tesouro.api.connection-timeout-ms:3000}") int connectionTimeoutMs,
                                       @Value("${tesouro.api.response-timeout-seconds:30}") long responseTimeoutSeconds,
                                       @Value("${tesouro.api.max-in-memory-mb:32}") int maxInMemoryMb) {

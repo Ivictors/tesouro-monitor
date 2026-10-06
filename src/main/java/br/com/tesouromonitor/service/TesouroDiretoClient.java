@@ -11,12 +11,16 @@ import reactor.core.publisher.Mono;
 @Service
 public class TesouroDiretoClient {
 
+    private static final String CAMINHO_TITULOS_PADRAO = "/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/"
+            + "resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv";
+
     private final WebClient webClient;
     private final String titulosPath;
     private final TesouroCsvParser csvParser;
 
     public TesouroDiretoClient(WebClient webClient,
-                               @Value("${tesouro.api.titulos-path}") String titulosPath,
+                               @Value("${tesouro.api.titulos-path:" + CAMINHO_TITULOS_PADRAO + "}")
+                               String titulosPath,
                                TesouroCsvParser csvParser) {
         this.webClient = webClient;
         this.titulosPath = titulosPath;
