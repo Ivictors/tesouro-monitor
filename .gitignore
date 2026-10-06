@@ -10,6 +10,7 @@
 *.keystore
 secrets/
 .secrets/
+backups/
 
 # Configuracao local Spring: publicar somente os arquivos explicitamente marcados como exemplo
 **/*.properties

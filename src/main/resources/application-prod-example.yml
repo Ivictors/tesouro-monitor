@@ -4,8 +4,8 @@ server:
 spring:
   datasource:
     url: ${DATABASE_URL:jdbc:postgresql://localhost:5432/tesourodb}
-    username: ${DATABASE_USERNAME:usuario_exemplo}
-    password: ${DATABASE_PASSWORD:senha_ficticia}
+    username: ${DATABASE_USERNAME}
+    password: ${DATABASE_PASSWORD}
     driver-class-name: org.postgresql.Driver
   jpa:
     hibernate:

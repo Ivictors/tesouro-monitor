@@ -11,6 +11,19 @@ Base de monitoramento de títulos do Tesouro Direto com Java 25 e Spring Boot 3.
 
 Para o perfil `prod`, use `application-prod-example.yml` como modelo local, defina `DATABASE_URL`, `DATABASE_USERNAME` e `DATABASE_PASSWORD`, e inicie com `SPRING_PROFILES_ACTIVE=prod`. Flyway aplica as migrações versionadas em `src/main/resources/db/migration`; Hibernate valida o schema.
 
+### PostgreSQL de produção (local)
+
+PostgreSQL é o banco padrão do perfil `prod`; H2 fica restrito ao perfil `dev`. Para iniciar o PostgreSQL local com Docker Compose, copie `.env.example` para `.env`, substitua os valores fictícios por valores locais e execute:
+
+```powershell
+docker compose -f compose-example.yml up -d
+docker compose -f compose-example.yml ps
+```
+
+Em um PowerShell separado, configure `SPRING_PROFILES_ACTIVE=prod`, `DATABASE_URL=jdbc:postgresql://localhost:5432/tesourodb`, `DATABASE_USERNAME` e `DATABASE_PASSWORD` com os mesmos valores locais do `.env`, e execute `mvn spring-boot:run`. Se ainda não existirem, copie `application-prod-example.yml` para `application-prod.yml` e `application-example.yml` para `application.yml`, sem sobrescrever arquivos locais existentes. O perfil `prod` falha ao iniciar se as credenciais não forem configuradas.
+
+O Compose guarda os dados em um volume nomeado. Para parar o banco sem remover os dados, use `docker compose -f compose-example.yml stop`. Não use `down -v` se quiser preservar a carteira. O procedimento de backup e restauração está em [`docs/operacao-postgresql.md`](docs/operacao-postgresql.md); mantenha os arquivos de backup locais, na pasta `backups/`, que é ignorada pelo Git.
+
 Os arquivos `*-example.yml` e `.env.example` contêm somente valores fictícios. Spring Boot não carrega `.env` automaticamente; configure as variáveis no ambiente da IDE, terminal ou plataforma de execução.
 
 ## Testes
