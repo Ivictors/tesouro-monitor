@@ -64,6 +64,16 @@ export type AlertasRecentes = {
   total: number
 }
 
+export type SincronizacaoStatus = {
+  emAndamento: boolean
+  iniciadaEm: string | null
+  concluidaEm: string | null
+  sucesso: boolean | null
+  cotacoesPersistidas: number | null
+  posicoesCorrespondentes: number | null
+  mensagem: string
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
   const response = await fetch(url, {
     ...init,
@@ -75,7 +85,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
     try {
       const problem = await response.json()
       const validationMessages = Array.isArray(problem.errors) ? problem.errors.join(' ') : undefined
-      message = validationMessages ?? problem.detail ?? problem.title ?? message
+      message = validationMessages ?? problem.mensagem ?? problem.detail ?? problem.title ?? message
     } catch {
       // Algumas respostas de erro nao incluem corpo JSON.
     }
@@ -87,6 +97,8 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const ativosApi = {
+  statusSincronizacao: () => request<SincronizacaoStatus>('/api/sincronizacao'),
+  sincronizar: () => request<SincronizacaoStatus>('/api/sincronizacao', { method: 'POST' }),
   listar: () => request<Ativo[]>('/api/ativos'),
   resumo: () => request<ResumoCarteira>('/api/ativos/resumo'),
   historico: (id: number, dataInicio: string, dataFim: string, pagina = 0) => {

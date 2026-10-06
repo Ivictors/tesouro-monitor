@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ativosApi, type Alerta, type Ativo, type AtivoInput, type Cotacao, type ResumoCarteira } from './api/ativos'
+import { ativosApi, type Alerta, type Ativo, type AtivoInput, type Cotacao, type ResumoCarteira, type SincronizacaoStatus } from './api/ativos'
 
 const emptyForm: AtivoInput = {
   nomeTitulo: '',
@@ -37,6 +37,10 @@ export default function App() {
   const [error, setError] = useState('')
   const [historyError, setHistoryError] = useState('')
   const [notice, setNotice] = useState('')
+  const [syncStatus, setSyncStatus] = useState<SincronizacaoStatus | null>(null)
+  const [syncRunning, setSyncRunning] = useState(false)
+  const [syncError, setSyncError] = useState('')
+  const [syncNotice, setSyncNotice] = useState('')
 
   const loadAlerts = useCallback(async () => {
     const page = await ativosApi.alertas()
@@ -60,6 +64,34 @@ export default function App() {
   }, [loadAlerts])
 
   useEffect(() => { void load() }, [load])
+
+  useEffect(() => {
+    void ativosApi.statusSincronizacao().then(setSyncStatus).catch(() => {
+      setSyncError('Não foi possível consultar o estado da sincronização.')
+    })
+  }, [])
+
+  async function synchronizeQuotes() {
+    setSyncRunning(true)
+    setSyncError('')
+    setSyncNotice('')
+    try {
+      const result = await ativosApi.sincronizar()
+      setSyncStatus(result)
+      if (result.sucesso) setSyncNotice(result.mensagem)
+      else setSyncError(result.mensagem)
+      await load()
+    } catch (cause) {
+      setSyncError(cause instanceof Error ? cause.message : 'Não foi possível atualizar as cotações.')
+      try {
+        setSyncStatus(await ativosApi.statusSincronizacao())
+      } catch {
+        // O erro da sincronização já é apresentado ao usuário.
+      }
+    } finally {
+      setSyncRunning(false)
+    }
+  }
 
   const loadHistory = useCallback(async (id: number, start: string, end: string, page: number) => {
     setHistoryError('')
@@ -162,9 +194,21 @@ export default function App() {
         <p className="eyebrow">ACOMPANHAMENTO DE RENDA FIXA</p>
         <h1>Sua carteira,<br /><em>em perspectiva.</em></h1>
         <p className="intro-copy">Acompanhe a valorização estimada com base no PU Venda divulgado pelo Tesouro Direto.</p>
+        <div className="sync-controls">
+          <button type="button" className="button primary" onClick={() => void synchronizeQuotes()} disabled={syncRunning}>
+            {syncRunning ? 'Sincronizando…' : 'Sincronizar cotações'}
+          </button>
+          <p className="sync-meta" role="status">
+            {syncRunning ? 'Buscando os dados mais recentes.' : syncStatus?.concluidaEm
+              ? `${syncStatus.sucesso ? 'Última sincronização' : 'Última tentativa'}: ${new Date(syncStatus.concluidaEm).toLocaleString('pt-BR')}`
+              : 'Nenhuma sincronização realizada nesta execução.'}
+          </p>
+        </div>
       </section>
 
       {error && <p className="message error" role="alert">{error}</p>}
+      {syncError && <p className="message error" role="alert">{syncError}</p>}
+      {syncNotice && <p className="message success" role="status">{syncNotice}</p>}
 
       <section className="summary-grid" aria-label="Resumo financeiro">
         <article className="summary-card"><span>Valor investido</span><strong>{money(resumo?.totalInvestido ?? null)}</strong></article>

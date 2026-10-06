@@ -4,6 +4,7 @@ import br.com.tesouromonitor.service.AtivoCarteiraNaoEncontradoException;
 import br.com.tesouromonitor.service.AlertaNaoEncontradoException;
 import br.com.tesouromonitor.service.IntervaloDataInvalidoException;
 import br.com.tesouromonitor.service.CotacaoNaoEncontradaException;
+import br.com.tesouromonitor.service.SincronizacaoEmAndamentoException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ProblemDetail;
 import org.springframework.http.ResponseEntity;
@@ -14,6 +15,14 @@ import jakarta.validation.ConstraintViolationException;
 
 @RestControllerAdvice
 public class ApiExceptionHandler {
+
+    @ExceptionHandler(SincronizacaoEmAndamentoException.class)
+    public ResponseEntity<ProblemDetail> tratarSincronizacaoEmAndamento(
+            SincronizacaoEmAndamentoException exception) {
+        ProblemDetail problem = ProblemDetail.forStatusAndDetail(HttpStatus.CONFLICT, exception.getMessage());
+        problem.setTitle("Sincronização em andamento");
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(problem);
+    }
 
     @ExceptionHandler(AtivoCarteiraNaoEncontradoException.class)
     public ResponseEntity<ProblemDetail> tratarNaoEncontrado(AtivoCarteiraNaoEncontradoException exception) {

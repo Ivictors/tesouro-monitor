@@ -21,6 +21,12 @@ Execute `mvn test` com JDK 25 instalado. O teste PostgreSQL usa Testcontainers e
 
 Em outro terminal, execute `cd frontend`, `npm ci` e `npm run dev`. O Vite encaminha `/api` para o backend em `http://localhost:8080`. Para verificar o pacote e os testes de interface, execute `npm run build` e `npm test` dentro de `frontend/`.
 
+### Sincronização de cotações
+
+Use o botão **Sincronizar cotações** no painel para atualizar os dados imediatamente. A aplicação também tenta sincronizar automaticamente em dias úteis às 10h15 (horário de São Paulo), desde que esteja em execução. O painel informa o resultado e o horário da última tentativa nesta execução.
+
+Para consultar o estado pela API, use `GET /api/sincronizacao`. Para iniciar uma sincronização manualmente sem o frontend, use `POST /api/sincronizacao` (por exemplo, `Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/sincronizacao`). Uma execução simultânea retorna HTTP 409; uma falha na fonte retorna HTTP 502 e não remove cotações já persistidas.
+
 ## Seguranca
 
 O `.gitignore` exclui `.env`, configurações locais `.properties`/`.yml`/`.yaml`, artefatos de build, chaves privadas e arquivos de keystore. Somente arquivos com `-example` no nome são permitidos para configuração de exemplo.

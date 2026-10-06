@@ -75,11 +75,48 @@ function setupApi(options: {
   summaries?: object[]
   alerts?: object[]
   failSummary?: boolean
+  failSync?: boolean
 } = {}) {
   const summaries = [...(options.summaries ?? [emptySummary])]
   let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0 }
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
+    if (url === '/api/sincronizacao' && init?.method === 'POST') return options.failSync
+      ? response({
+        emAndamento: false,
+        iniciadaEm: '2026-10-05T13:00:00Z',
+        concluidaEm: '2026-10-05T13:00:01Z',
+        sucesso: false,
+        cotacoesPersistidas: 0,
+        posicoesCorrespondentes: 0,
+        mensagem: 'Não foi possível sincronizar as cotações.',
+      }, 502)
+      : response({
+        emAndamento: false,
+        iniciadaEm: '2026-10-05T13:00:00Z',
+        concluidaEm: '2026-10-05T13:00:01Z',
+        sucesso: true,
+        cotacoesPersistidas: 1,
+        posicoesCorrespondentes: 1,
+        mensagem: 'Sincronização concluída com sucesso.',
+      })
+    if (url === '/api/sincronizacao') return response(options.failSync ? {
+      emAndamento: false,
+      iniciadaEm: '2026-10-05T13:00:00Z',
+      concluidaEm: '2026-10-05T13:00:01Z',
+      sucesso: false,
+      cotacoesPersistidas: 0,
+      posicoesCorrespondentes: 0,
+      mensagem: 'Não foi possível sincronizar as cotações.',
+    } : {
+      emAndamento: false,
+      iniciadaEm: null,
+      concluidaEm: null,
+      sucesso: null,
+      cotacoesPersistidas: null,
+      posicoesCorrespondentes: null,
+      mensagem: 'Nenhuma sincronização realizada nesta execução.',
+    })
     if (url === '/api/ativos/resumo') {
       if (options.failSummary) throw new Error('Backend indisponível')
       return response(summaries.shift() ?? emptySummary)
@@ -105,6 +142,28 @@ function setupApi(options: {
 }
 
 describe('painel e gestão da carteira', () => {
+  it('sincroniza cotações sob demanda e atualiza o painel', async () => {
+    const user = userEvent.setup()
+    const fetchMock = setupApi()
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sincronizar cotações' }))
+
+    expect(await screen.findByText('Sincronização concluída com sucesso.')).toBeInTheDocument()
+    expect(fetchMock).toHaveBeenCalledWith('/api/sincronizacao', expect.objectContaining({ method: 'POST' }))
+  })
+
+  it('apresenta o erro de uma sincronização sem perder o status da execução', async () => {
+    const user = userEvent.setup()
+    setupApi({ failSync: true })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sincronizar cotações' }))
+
+    expect(await screen.findByText('Não foi possível sincronizar as cotações.')).toBeInTheDocument()
+    expect(screen.getByText(/Última tentativa:/)).toBeInTheDocument()
+  })
+
   it('mostra estado vazio e cadastra um título', async () => {
     const user = userEvent.setup()
     const fetchMock = setupApi({ summaries: [emptySummary, { ...emptySummary, posicoes: [position] }] })

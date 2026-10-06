@@ -3,6 +3,7 @@ package br.com.tesouromonitor;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -53,6 +54,25 @@ class CoreWorkflowIntegrationTest {
         alertaRepository.deleteAll();
         cotacaoRepository.deleteAll();
         ativoRepository.deleteAll();
+    }
+
+    @Test
+    void sincronizacaoManualImportaDadosERetornaEstado() throws Exception {
+        TituloDTO title = new TituloDTO("Tesouro Selic - 2031-03-01", LocalDate.of(2031, 3, 1),
+                LocalDate.of(2026, 10, 2), new BigDecimal("0.09"), new BigDecimal("0.10"),
+                new BigDecimal("19943.12"), new BigDecimal("19924.17"), new BigDecimal("19924.17"));
+        when(tesouroDiretoClient.buscarTitulos()).thenReturn(Mono.just(new TesouroResponseDTO(List.of(title))));
+
+        mockMvc.perform(post("/api/sincronizacao"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.emAndamento").value(false))
+                .andExpect(jsonPath("$.sucesso").value(true))
+                .andExpect(jsonPath("$.cotacoesPersistidas").value(1));
+
+        mockMvc.perform(get("/api/sincronizacao"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.sucesso").value(true))
+                .andExpect(jsonPath("$.mensagem").value("Sincronização concluída com sucesso."));
     }
 
     @Test
