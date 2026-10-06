@@ -18,6 +18,7 @@ secrets/
 !**/*-example.properties
 !**/*-example.yml
 !**/*-example.yaml
+!.github/workflows/*.yml
 
 # Maven e compilacao
 target/
