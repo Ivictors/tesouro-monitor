@@ -22,8 +22,8 @@ spring:
 
 tesouro:
   api:
-    base-url: ${TESOURO_API_BASE_URL:https://api.example.test}
-    titulos-path: ${TESOURO_API_TITULOS_PATH:/v1/mock/titulos.csv}
+    base-url: ${TESOURO_API_BASE_URL:https://www.tesourotransparente.gov.br}
+    titulos-path: ${TESOURO_API_TITULOS_PATH:/ckan/dataset/df56aa42-484a-4a59-8184-7676580c81e3/resource/796d2059-14e9-44e3-80c9-2d9e30b405c1/download/precotaxatesourodireto.csv}
     connection-timeout-ms: ${TESOURO_API_CONNECTION_TIMEOUT_MS:3000}
     response-timeout-seconds: ${TESOURO_API_RESPONSE_TIMEOUT_SECONDS:30}
     max-in-memory-mb: ${TESOURO_API_MAX_IN_MEMORY_MB:32}

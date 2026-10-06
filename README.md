@@ -1,47 +1,116 @@
 # tesouro-monitor
 
-Base de monitoramento de títulos do Tesouro Direto com Java 25 e Spring Boot 3.
+Aplicação local para acompanhar títulos do Tesouro Direto. Backend Java 25/Spring Boot e frontend React/TypeScript.
 
-## Configuracao local
+## Pré-requisitos
 
-1. Copie `.env.example` para `.env` e ajuste os valores locais. O arquivo `.env` é ignorado pelo Git.
-2. Copie `src/main/resources/application-example.yml` para `application.yml` no mesmo diretório. As configurações `application-dev.yml` e `application-prod.yml` também são locais e ignoradas.
-3. A fonte pública documentada em `docs/integracao-tesouro.md` fornece CSV diário; ajuste `TESOURO_API_BASE_URL` e `TESOURO_API_TITULOS_PATH` se a fonte mudar.
-4. Execute com Java 25: `mvn spring-boot:run`.
+- JDK 25 e Maven (ou `mvnw.cmd`, se incluído no checkout).
+- Node.js 24 e npm.
+- Docker Desktop somente para usar PostgreSQL local e executar os testes PostgreSQL com Testcontainers.
 
-Para o perfil `prod`, use `application-prod-example.yml` como modelo local, defina `DATABASE_URL`, `DATABASE_USERNAME` e `DATABASE_PASSWORD`, e inicie com `SPRING_PROFILES_ACTIVE=prod`. Flyway aplica as migrações versionadas em `src/main/resources/db/migration`; Hibernate valida o schema.
+## Desenvolvimento com H2
 
-### PostgreSQL de produção (local)
-
-PostgreSQL é o banco padrão do perfil `prod`; H2 fica restrito ao perfil `dev`. Para iniciar o PostgreSQL local com Docker Compose, copie `.env.example` para `.env`, substitua os valores fictícios por valores locais e execute:
+No PowerShell, na raiz do repositório:
 
 ```powershell
-docker compose -f compose-example.yml up -d
-docker compose -f compose-example.yml ps
+Copy-Item src/main/resources/application-example.yml src/main/resources/application.yml
+Copy-Item src/main/resources/application-dev-example.yml src/main/resources/application-dev.yml
 ```
 
-Em um PowerShell separado, configure `SPRING_PROFILES_ACTIVE=prod`, `DATABASE_URL=jdbc:postgresql://localhost:5432/tesourodb`, `DATABASE_USERNAME` e `DATABASE_PASSWORD` com os mesmos valores locais do `.env`, e execute `mvn spring-boot:run`. Se ainda não existirem, copie `application-prod-example.yml` para `application-prod.yml` e `application-example.yml` para `application.yml`, sem sobrescrever arquivos locais existentes. O perfil `prod` falha ao iniciar se as credenciais não forem configuradas.
+Se esses arquivos locais já existirem, não os sobrescreva. O exemplo ativa o perfil `dev`, usa H2 em memória (`jdbc:h2:mem:tesourodb`), porta 8080 e `ddl-auto: update`. Os dados em memória são perdidos quando a aplicação para ou reinicia.
 
-O Compose guarda os dados em um volume nomeado. Para parar o banco sem remover os dados, use `docker compose -f compose-example.yml stop`. Não use `down -v` se quiser preservar a carteira. O procedimento de backup e restauração está em [`docs/operacao-postgresql.md`](docs/operacao-postgresql.md); mantenha os arquivos de backup locais, na pasta `backups/`, que é ignorada pelo Git.
+Inicie o backend:
 
-Os arquivos `*-example.yml` e `.env.example` contêm somente valores fictícios. Spring Boot não carrega `.env` automaticamente; configure as variáveis no ambiente da IDE, terminal ou plataforma de execução.
+```powershell
+mvn spring-boot:run
+```
 
-## Testes
+Em outro PowerShell, inicie o frontend:
 
-Execute `mvn test` com JDK 25 instalado. O teste PostgreSQL usa Testcontainers e requer Docker ativo; quando Docker não está disponível, esse teste é marcado como ignorado.
+```powershell
+Set-Location frontend
+npm ci
+npm run dev
+```
 
-## Frontend
+Abra a URL que o Vite exibir. O proxy encaminha `/api` para `http://localhost:8080`.
 
-Em outro terminal, execute `cd frontend`, `npm ci` e `npm run dev`. O Vite encaminha `/api` para o backend em `http://localhost:8080`. Para verificar o pacote e os testes de interface, execute `npm run build` e `npm test` dentro de `frontend/`.
+## Persistência com PostgreSQL
 
-### Sincronização de cotações
+PostgreSQL é o banco do perfil `prod`; H2 serve apenas para desenvolvimento rápido. O Spring Boot **não carrega `.env` automaticamente**. O Docker Compose lê `.env` para iniciar o banco, mas as variáveis da aplicação precisam ser definidas no ambiente do processo Java.
 
-Use o botão **Sincronizar cotações** no painel para atualizar os dados imediatamente. A aplicação também tenta sincronizar automaticamente em dias úteis às 10h15 (horário de São Paulo), desde que esteja em execução. O painel informa o resultado e o horário da última tentativa nesta execução.
+Crie o arquivo local sem sobrescrever um já existente e substitua os valores fictícios por credenciais próprias:
 
-Para consultar o estado pela API, use `GET /api/sincronizacao`. Para iniciar uma sincronização manualmente sem o frontend, use `POST /api/sincronizacao` (por exemplo, `Invoke-RestMethod -Method Post -Uri http://localhost:8080/api/sincronizacao`). Uma execução simultânea retorna HTTP 409; uma falha na fonte retorna HTTP 502 e não remove cotações já persistidas.
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+```
 
-## Seguranca
+Inicie e confira PostgreSQL. A porta do banco fica limitada a `127.0.0.1:5432` e os dados persistem em volume Docker:
 
-O `.gitignore` exclui `.env`, configurações locais `.properties`/`.yml`/`.yaml`, artefatos de build, chaves privadas e arquivos de keystore. Somente arquivos com `-example` no nome são permitidos para configuração de exemplo.
+```powershell
+docker compose --env-file .env -f compose-example.yml up -d
+docker compose --env-file .env -f compose-example.yml ps
+```
 
-O MVP é single-user e local: o backend escuta em `127.0.0.1` por padrão. Não exponha a porta 8080 à rede ou à internet. Acesso remoto exige autenticação e autorização, ainda não implementadas.
+Copie os exemplos de configuração apenas se os arquivos ainda não existirem:
+
+```powershell
+if (-not (Test-Path src/main/resources/application.yml)) { Copy-Item src/main/resources/application-example.yml src/main/resources/application.yml }
+if (-not (Test-Path src/main/resources/application-prod.yml)) { Copy-Item src/main/resources/application-prod-example.yml src/main/resources/application-prod.yml }
+```
+
+No PowerShell que iniciará a aplicação, configure as variáveis. Troque usuário e senha pelos valores escolhidos no `.env`:
+
+```powershell
+$env:SPRING_PROFILES_ACTIVE = 'prod'
+$env:DATABASE_URL = 'jdbc:postgresql://localhost:5432/tesourodb'
+$env:DATABASE_USERNAME = 'seu_usuario_local'
+$env:DATABASE_PASSWORD = 'sua_senha_local'
+mvn spring-boot:run
+```
+
+O perfil `prod` exige usuário e senha e aplica migrações Flyway; Hibernate valida o schema. Para parar o banco preservando dados:
+
+```powershell
+docker compose --env-file .env -f compose-example.yml stop
+```
+
+Não use `down -v` se quiser manter a carteira. Consulte [`docs/operacao-postgresql.md`](docs/operacao-postgresql.md) para backup e restauração; mantenha backups fora do Git.
+
+## Sincronização
+
+A aplicação busca o CSV oficial documentado em [`docs/integracao-tesouro.md`](docs/integracao-tesouro.md). O botão **Sincronizar cotações** atualiza sob demanda; o scheduler tenta sincronizar em dias úteis às 10h15 no fuso de São Paulo enquanto o backend está em execução. A API também oferece `GET /api/sincronizacao` para consultar o estado e `POST /api/sincronizacao` para iniciar uma sincronização. Uma execução sobreposta responde HTTP 409; falha na fonte responde HTTP 502 e preserva as cotações existentes.
+
+Para fazer a chamada manual no PowerShell:
+
+```powershell
+Invoke-RestMethod -Method Post -Uri http://127.0.0.1:8080/api/sincronizacao
+```
+
+## Testes e build
+
+Na raiz, execute os testes do backend:
+
+```powershell
+mvn --batch-mode verify
+```
+
+O conjunto PostgreSQL usa Testcontainers e precisa do Docker ativo; sem Docker, os testes específicos são ignorados e essa execução não comprova o comportamento PostgreSQL. Na pasta `frontend/`:
+
+```powershell
+npm ci
+npm test
+npm run build
+```
+
+O CI executa Maven com Java 25, Testcontainers/PostgreSQL, testes frontend e build frontend. Resultados da entrega e da fumaça real da fonte estão em [`docs/criterios-de-aceitacao.md`](docs/criterios-de-aceitacao.md).
+
+## Encerrar
+
+Pare o backend com `Ctrl+C` no terminal correspondente. Pare o servidor de desenvolvimento Vite com `Ctrl+C`. Para parar apenas o PostgreSQL e preservar seu volume, use `docker compose --env-file .env -f compose-example.yml stop`.
+
+## Segurança e limites
+
+`.env`, arquivos Spring ativos (`.properties`, `.yml`, `.yaml`), dados e backups locais não devem ser versionados. Apenas arquivos `*-example` e `.env.example` são apropriados para o Git; exemplos não devem conter segredos. O `.env.example` contém valores fictícios de banco.
+
+O MVP é single-user/local e backend e PostgreSQL ficam limitados a loopback por padrão. Não exponha a porta 8080 à rede ou à internet: autenticação e autorização ainda não foram implementadas. A aplicação não envia notificações externas; alertas ficam disponíveis no próprio painel/API. Veja [`docs/guardrails.md`](docs/guardrails.md) e [`docs/regras-monitoramento.md`](docs/regras-monitoramento.md).
