@@ -24,6 +24,10 @@ O conjunto publica diariamente taxas e preços. O CSV usa `;` como delimitador, 
 
 A fixture pequena em `src/test/resources/tesouro/tesouro-direto.csv` reproduz as colunas e alguns registros publicados. É somente dado público de teste, não configuração nem dado pessoal.
 
+## Verificação manual da fonte
+
+Em 2026-10-05, o recurso CSV foi consultado diretamente e pela sincronização manual local da aplicação. O servidor respondeu HTTP 200 com `text/csv`; o arquivo tinha 14.561.842 bytes e o cabeçalho esperado. A aplicação interpretou e persistiu 58 cotações, sem posições correspondentes porque a carteira de teste estava vazia. Essa verificação confirma o comportamento observado nessa data; não implica SLA nem substitui os testes automatizados com HTTP simulado.
+
 ## Limites e decisões pendentes
 
 O endpoint JSON antigo encontrado em exemplos de terceiros respondeu HTTP 410 em 2026-10-04; ele não é tratado como API suportada. A fonte oficial verificada é CSV, não JSON. A fixture documenta o contrato de dados disponível, sem afirmar que existe SLA ou API REST de cotações.
