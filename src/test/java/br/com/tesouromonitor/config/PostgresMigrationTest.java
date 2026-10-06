@@ -2,6 +2,7 @@ package br.com.tesouromonitor.config;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import br.com.tesouromonitor.TesouroMonitorApplication;
 import br.com.tesouromonitor.domain.AlertaMonitoramento;
 import br.com.tesouromonitor.domain.AtivoCarteira;
 import br.com.tesouromonitor.domain.CotacaoDiaria;
@@ -15,7 +16,10 @@ import org.flywaydb.core.Flyway;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.WebApplicationType;
+import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.testcontainers.containers.PostgreSQLContainer;
@@ -79,6 +83,7 @@ class PostgresMigrationTest {
         assertThat(repository.count()).isEqualTo(1);
         assertThat(cotacaoRepository.count()).isEqualTo(1);
         assertThat(alertaRepository.count()).isEqualTo(1);
+        verificarDadosAposReiniciarAplicacao(ativo.getId());
 
         String restoredDatabase = "tesouro_restore_test";
         assertCommandSucceeded(POSTGRES.execInContainer("createdb", "-U", POSTGRES.getUsername(),
@@ -90,6 +95,25 @@ class PostgresMigrationTest {
         assertThat(queryCount(restoredDatabase, "ativos_carteira")).isEqualTo("1");
         assertThat(queryCount(restoredDatabase, "cotacoes_diarias")).isEqualTo("1");
         assertThat(queryCount(restoredDatabase, "alertas_monitoramento")).isEqualTo("1");
+    }
+
+    private void verificarDadosAposReiniciarAplicacao(Long ativoId) {
+        for (int reinicializacao = 0; reinicializacao < 2; reinicializacao++) {
+            try (ConfigurableApplicationContext application = new SpringApplicationBuilder(
+                    TesouroMonitorApplication.class)
+                    .web(WebApplicationType.NONE)
+                    .run("--spring.profiles.active=prod",
+                            "--spring.datasource.url=" + POSTGRES.getJdbcUrl(),
+                            "--spring.datasource.username=" + POSTGRES.getUsername(),
+                            "--spring.datasource.password=" + POSTGRES.getPassword(),
+                            "--spring.datasource.driver-class-name=org.postgresql.Driver",
+                            "--spring.jpa.hibernate.ddl-auto=validate",
+                            "--spring.flyway.enabled=true")) {
+                AtivoCarteiraRepository repositoryAposReinicio =
+                        application.getBean(AtivoCarteiraRepository.class);
+                assertThat(repositoryAposReinicio.findById(ativoId)).isPresent();
+            }
+        }
     }
 
     private String queryCount(String database, String table) throws Exception {
