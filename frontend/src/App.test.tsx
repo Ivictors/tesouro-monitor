@@ -142,6 +142,21 @@ function setupApi(options: {
 }
 
 describe('painel e gestão da carteira', () => {
+  it('mostra boas-vindas e navega somente para áreas existentes', async () => {
+    setupApi()
+    render(<App />)
+
+    expect(screen.getByRole('heading', { name: 'Bem-vindo ao Tesouro Monitor.' })).toBeInTheDocument()
+
+    const destinations = ['inicio', 'carteira', 'historico', 'alertas']
+    const links = ['Início', 'Carteira', 'Histórico', 'Alertas']
+    for (const [index, label] of links.entries()) {
+      const link = screen.getByRole('link', { name: label })
+      expect(link).toHaveAttribute('href', `#${destinations[index]}`)
+      expect(document.getElementById(destinations[index])).not.toBeNull()
+    }
+  })
+
   it('sincroniza cotações sob demanda e atualiza o painel', async () => {
     const user = userEvent.setup()
     const fetchMock = setupApi()

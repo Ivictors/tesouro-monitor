@@ -187,13 +187,19 @@ export default function App() {
           <span className="brand-mark" aria-hidden="true">T</span>
           <span>Tesouro<span className="brand-light">Monitor</span></span>
         </a>
+        <nav className="main-nav" aria-label="Navegação principal">
+          <a href="#inicio">Início</a>
+          <a href="#carteira">Carteira</a>
+          <a href="#historico">Histórico</a>
+          <a href="#alertas">Alertas</a>
+        </nav>
         <span className="environment">CARTEIRA PESSOAL · LOCAL</span>
       </header>
 
-      <section className="intro">
+      <section className="intro" id="inicio">
         <p className="eyebrow">ACOMPANHAMENTO DE RENDA FIXA</p>
-        <h1>Sua carteira,<br /><em>em perspectiva.</em></h1>
-        <p className="intro-copy">Acompanhe a valorização estimada com base no PU Venda divulgado pelo Tesouro Direto.</p>
+        <h1 aria-label="Bem-vindo ao Tesouro Monitor.">Bem-vindo ao<br /><em>Tesouro Monitor.</em></h1>
+        <p className="intro-copy">Acompanhe sua carteira e a valorização estimada dos títulos com base no PU Venda divulgado pelo Tesouro Direto.</p>
         <div className="sync-controls">
           <button type="button" className="button primary" onClick={() => void synchronizeQuotes()} disabled={syncRunning}>
             {syncRunning ? 'Sincronizando…' : 'Sincronizar cotações'}
@@ -221,7 +227,7 @@ export default function App() {
         </p>
       )}
 
-      <section className="content-grid" aria-label="Gestão da carteira">
+      <section className="content-grid" id="carteira" aria-label="Gestão da carteira">
         <section className="panel form-panel" aria-labelledby="form-title">
           <div className="panel-heading"><span className="step">01</span><div><p className="eyebrow">SUA POSIÇÃO</p><h2 id="form-title">{editingId === null ? 'Adicionar título' : 'Editar título'}</h2></div></div>
           <form onSubmit={submit}>
@@ -265,7 +271,7 @@ export default function App() {
       </section>
 
       <section className="panel detail-grid" aria-label="Histórico e alertas">
-        <section aria-labelledby="history-title">
+        <section id="historico" aria-labelledby="history-title">
           <div className="panel-heading"><span className="step">03</span><div><p className="eyebrow">COTAÇÕES</p><h2 id="history-title">Histórico do ativo</h2></div></div>
           {positions.length > 0 && <div className="history-filters">
             <label htmlFor="ativoHistorico">Ativo</label>
@@ -281,7 +287,7 @@ export default function App() {
           </>}
         </section>
 
-        <section aria-labelledby="alerts-title">
+        <section id="alertas" aria-labelledby="alerts-title">
           <div className="panel-heading"><span className="step">04</span><div><p className="eyebrow">VALORIZAÇÃO ≥ 5%</p><h2 id="alerts-title">Alertas recentes</h2></div></div>
           {alertas.length === 0 && <p className="empty-state">Nenhum alerta de valorização até agora.</p>}
           {alertas.length > 0 && <ul className="alert-list">{alertas.map(alerta => <li className={alerta.lido ? 'alert-item read' : 'alert-item'} key={alerta.id}>
