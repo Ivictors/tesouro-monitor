@@ -37,7 +37,7 @@ Abra a URL que o Vite exibir. O proxy encaminha `/api` para `http://localhost:80
 
 ## Persistência com PostgreSQL
 
-PostgreSQL é o banco do perfil `prod`; H2 serve apenas para desenvolvimento rápido. O Spring Boot **não carrega `.env` automaticamente**. O Docker Compose lê `.env` para iniciar o banco, mas as variáveis da aplicação precisam ser definidas no ambiente do processo Java.
+PostgreSQL 18.6 é o banco do perfil `prod`; H2 serve apenas para desenvolvimento rápido. O Compose usa a imagem local `postgres:18.6`, porta `127.0.0.1:5432` por padrão e volume persistente próprio do PG18. Se 5432 estiver ocupada, ajuste `POSTGRES_HOST_PORT` no `.env` e use a mesma porta em `DATABASE_URL`. O Spring Boot **não carrega `.env` automaticamente**. O Docker Compose lê `.env` para iniciar o banco, mas as variáveis da aplicação precisam ser definidas no ambiente do processo Java.
 
 Crie o arquivo local sem sobrescrever um já existente e substitua os valores fictícios por credenciais próprias:
 
