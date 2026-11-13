@@ -27,7 +27,7 @@ Este plano organiza a próxima entrega em etapas verificáveis. O escopo confirm
 - [x] `mvn --batch-mode "-Djava.version=21" verify`: 42 testes, 0 falhas, 0 erros e 2 skips. Os dois skips são `PostgresMigrationTest`: Testcontainers não detectou o endpoint Docker deste ambiente local.
 - [x] `npm test`: 9 testes passaram; `npm run build` concluiu com sucesso.
 - [x] Backend no perfil `prod` conectou ao Compose, aplicou as migrações Flyway e respondeu às operações da API. Reinicialização preservou os dados; backup e restauração em banco separado foram verificados.
-- [ ] CI no PR confirma Java 25 e executa os testes PostgreSQL automatizados sem skips.
+- [x] CI no PR #20 passou com Java 25, PostgreSQL/Testcontainers, testes frontend e build frontend.
 
 ## Critérios para concluir a etapa
 
@@ -35,7 +35,7 @@ Este plano organiza a próxima entrega em etapas verificáveis. O escopo confirm
 - A suíte PostgreSQL exerce o mesmo major/patch configurado para desenvolvimento local.
 - Maven passou localmente usando o override Java 21, pois esta máquina não tem Java 25 instalado. Os testes de integração Testcontainers foram pulados por indisponibilidade de detecção do Docker; a integração foi verificada manualmente contra o PostgreSQL Compose. O CI deve confirmar Java 25 e Testcontainers.
 - A aplicação inicia com `prod`, aplica as migrações e atende a API usando PostgreSQL Compose.
-- PR para `main` estará aberto e aguardará o merge manual do usuário; não habilitar auto-merge.
+- PR #20 para `main` está aberto, com CI verde, e aguarda o merge manual do usuário; não habilitar auto-merge.
 
 ## Próximas decisões
 
