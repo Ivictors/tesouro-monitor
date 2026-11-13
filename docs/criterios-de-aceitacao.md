@@ -13,7 +13,7 @@ Este documento descreve o MVP pessoal implementado. Os critérios marcados foram
 ## Persistência e integração
 
 - [x] Perfil `dev` usa H2 em memória (`jdbc:h2:mem:tesourodb`), porta 8080 e Hibernate `update`.
-- [x] Perfil `prod` usa PostgreSQL, credenciais obrigatórias externas e schema versionado por Flyway; Hibernate valida o schema.
+- [x] Perfil `prod` usa PostgreSQL 18.6, credenciais obrigatórias externas e schema versionado por Flyway; Hibernate valida o schema.
 - [x] Migrações e persistência de ativos, cotações e alertas verificadas com PostgreSQL/Testcontainers.
 - [x] Reinicialização da aplicação preserva os registros; backup/restauração PostgreSQL foi exercitado em banco separado.
 - [x] Cliente `WebClient` consulta o CSV oficial do Tesouro Transparente; contrato e mapeamento estão em [`integracao-tesouro.md`](integracao-tesouro.md).
