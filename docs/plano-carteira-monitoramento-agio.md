@@ -26,9 +26,9 @@ Referências de regra: [`regras-monitoramento.md`](regras-monitoramento.md), [`i
 3. **Estado de monitoramento pouco explícito:** mostrar claramente a data-base da cotação, o resultado em relação ao limite e quando não existe cotação correspondente. Não inventar um SLA nem classificar uma cotação como vencida sem decisão de idade máxima.
 4. **Fluxo de ponta a ponta:** validar o caminho sincronizar → selecionar título → cadastrar compra → consultar posição → cruzar limite → ler alerta, incluindo falha da fonte e ausência de correspondência.
 
-## Decisão recomendada
+## Decisões de implementação definidas
 
-Manter uma linha da carteira por compra (lote), selecionar títulos de um catálogo derivado das cotações oficiais mais recentes e preservar a chave canônica `Tipo Titulo + Data Vencimento`. Isso reduz erros de associação e permite compras do mesmo título em datas e preços diferentes. O backend continua responsável pelos cálculos e pelo disparo do alerta; o frontend apenas apresenta o resultado.
+Conforme a issue #21, o cadastro seleciona o título do catálogo oficial sincronizado; nome livre não é o fluxo de aceite. O catálogo vem das cotações mais recentes e mantém a chave canônica `Tipo Titulo + Data Vencimento`. Cada compra fica em uma linha/lote independente, permitindo datas e preços diferentes para o mesmo título. O backend continua responsável pelos cálculos e pelo alerta; o frontend apresenta os resultados.
 
 ## Critérios de aceitação
 
@@ -45,7 +45,7 @@ Manter uma linha da carteira por compra (lote), selecionar títulos de um catál
 
 ## Etapas de implementação propostas
 
-### Etapa 0 — Confirmar contrato e baseline
+### Etapa 0 — Preparação e baseline
 
 - Preservar as regras já aprovadas em `docs/regras-monitoramento.md`.
 - Confirmar nomes/campos do CSV oficial e a chave canônica com a fixture e o parser existentes.
@@ -75,6 +75,7 @@ Issue: [#22](https://github.com/Ivictors/tesouro-monitor/issues/22).
 ### Etapa 3 — Completar cenários de sincronização e alertas
 
 Issue: [#23](https://github.com/Ivictors/tesouro-monitor/issues/23).
+Executar após as mudanças de contrato e interface das issues #21 e #22, para validar o fluxo com as decisões finais já aplicadas.
 
 - Confirmar que uma sincronização atualiza cotações e avalia todos os lotes associados à chave oficial.
 - Confirmar deduplicação, novo cruzamento após retorno abaixo do limite e comportamento em falha parcial.
@@ -91,11 +92,10 @@ Complementa a issue [#23](https://github.com/Ivictors/tesouro-monitor/issues/23)
 - Atualizar critérios de aceitação, decisões de integração, README e instruções de uso.
 - **Aceite:** AC-10; CI verde; PR aberto para revisão humana, sem merge automático.
 
-## Questões abertas e recomendações
+## Questões não bloqueantes
 
-- **Q-01 — Seleção do título:** recomenda-se catálogo oficial sincronizado em vez de nome livre. Essa escolha reduz erros de correspondência e não muda a regra financeira. Bloqueia a implementação da Etapa 1 até aprovação.
-- **Q-02 — Idade máxima da cotação:** não existe prazo de validade aprovado. Recomenda-se inicialmente mostrar a data-base e o horário da última sincronização, sem chamar uma cotação de desatualizada por regra arbitrária. Um limite de idade pode ser definido depois. Não bloqueia as Etapas 1–2.
-- **Q-03 — Canal do alerta:** manter alertas dentro da aplicação, como no MVP atual. Telegram/e-mail ficam fora deste escopo. Não bloqueia.
+- **Q-02 — Idade máxima da cotação:** não existe prazo de validade aprovado. Exibir a data-base e a última sincronização, sem inventar um prazo para classificar uma cotação como desatualizada. Definir limite de idade pode ficar para depois; não bloqueia as issues #21–#23.
+- **Q-03 — Canal do alerta:** manter alertas dentro da aplicação, conforme escopo atual. Telegram/e-mail ficam fora deste plano; não bloqueia.
 
 ## Branch e fluxo de entrega
 
