@@ -9,6 +9,10 @@ export type Ativo = {
 
 export type AtivoInput = Omit<Ativo, 'id'>
 
+export type TituloDisponivel = {
+  nomeTitulo: string
+}
+
 export type Posicao = {
   ativo: Ativo
   dataCotacao: string | null
@@ -97,6 +101,7 @@ async function request<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 export const ativosApi = {
+  titulosDisponiveis: () => request<TituloDisponivel[]>('/api/titulos'),
   statusSincronizacao: () => request<SincronizacaoStatus>('/api/sincronizacao'),
   sincronizar: () => request<SincronizacaoStatus>('/api/sincronizacao', { method: 'POST' }),
   listar: () => request<Ativo[]>('/api/ativos'),

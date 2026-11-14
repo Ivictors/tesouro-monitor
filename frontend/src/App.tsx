@@ -1,6 +1,15 @@
 import { useCallback, useEffect, useState } from 'react'
 import type { FormEvent } from 'react'
-import { ativosApi, type Alerta, type Ativo, type AtivoInput, type Cotacao, type ResumoCarteira, type SincronizacaoStatus } from './api/ativos'
+import {
+  ativosApi,
+  type Alerta,
+  type Ativo,
+  type AtivoInput,
+  type Cotacao,
+  type ResumoCarteira,
+  type SincronizacaoStatus,
+  type TituloDisponivel,
+} from './api/ativos'
 
 const emptyForm: AtivoInput = {
   nomeTitulo: '',
@@ -41,6 +50,9 @@ export default function App() {
   const [syncRunning, setSyncRunning] = useState(false)
   const [syncError, setSyncError] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
+  const [titulos, setTitulos] = useState<TituloDisponivel[]>([])
+  const [titulosLoading, setTitulosLoading] = useState(true)
+  const [titulosError, setTitulosError] = useState('')
 
   const loadAlerts = useCallback(async () => {
     const page = await ativosApi.alertas()
@@ -63,7 +75,21 @@ export default function App() {
     }
   }, [loadAlerts])
 
+  const loadTitulos = useCallback(async () => {
+    setTitulosLoading(true)
+    setTitulosError('')
+    try {
+      setTitulos(await ativosApi.titulosDisponiveis())
+    } catch (cause) {
+      setTitulos([])
+      setTitulosError(cause instanceof Error ? cause.message : 'Erro desconhecido.')
+    } finally {
+      setTitulosLoading(false)
+    }
+  }, [])
+
   useEffect(() => { void load() }, [load])
+  useEffect(() => { void loadTitulos() }, [loadTitulos])
 
   useEffect(() => {
     void ativosApi.statusSincronizacao().then(setSyncStatus).catch(() => {
@@ -78,8 +104,12 @@ export default function App() {
     try {
       const result = await ativosApi.sincronizar()
       setSyncStatus(result)
-      if (result.sucesso) setSyncNotice(result.mensagem)
-      else setSyncError(result.mensagem)
+      if (result.sucesso) {
+        setSyncNotice(result.mensagem)
+        await loadTitulos()
+      } else {
+        setSyncError(result.mensagem)
+      }
       await load()
     } catch (cause) {
       setSyncError(cause instanceof Error ? cause.message : 'Não foi possível atualizar as cotações.')
@@ -178,6 +208,8 @@ export default function App() {
   }
 
   const positions = resumo?.posicoes ?? []
+  const tituloSalvoForaDoCatalogo = editingId !== null && form.nomeTitulo !== ''
+    && !titulos.some(titulo => titulo.nomeTitulo === form.nomeTitulo)
   const selected = positions.find(position => position.ativo.id === selectedId)
 
   return (
@@ -232,9 +264,26 @@ export default function App() {
           <div className="panel-heading"><span className="step">01</span><div><p className="eyebrow">SUA POSIÇÃO</p><h2 id="form-title">{editingId === null ? 'Adicionar título' : 'Editar título'}</h2></div></div>
           <form onSubmit={submit}>
             <label htmlFor="nomeTitulo">Título e vencimento</label>
-            <input id="nomeTitulo" required maxLength={255} placeholder="Tesouro Selic - 2031-03-01"
-              value={form.nomeTitulo} onChange={event => update('nomeTitulo', event.target.value)} />
-            <p className="hint">Use o nome oficial seguido do vencimento (AAAA-MM-DD).</p>
+            <select id="nomeTitulo" required value={form.nomeTitulo}
+              onChange={event => update('nomeTitulo', event.target.value)}>
+              <option value="">Selecione um título oficial</option>
+              {tituloSalvoForaDoCatalogo && <option value={form.nomeTitulo}>
+                {form.nomeTitulo} (já cadastrado, fora do catálogo atual)
+              </option>}
+              {titulos.map(titulo => <option key={titulo.nomeTitulo} value={titulo.nomeTitulo}>
+                {titulo.nomeTitulo}
+              </option>)}
+            </select>
+            {titulosLoading && <p className="hint" role="status">Carregando títulos oficiais…</p>}
+            {!titulosLoading && titulosError && <div>
+              <p className="message error" role="alert">Não foi possível carregar os títulos oficiais. {titulosError}</p>
+              <button className="button secondary" type="button" onClick={() => void loadTitulos()}>
+                Tentar novamente
+              </button>
+            </div>}
+            {!titulosLoading && !titulosError && titulos.length === 0 && <p className="empty-state" role="status">
+              Nenhum título oficial disponível. Sincronize as cotações antes de cadastrar uma compra.
+            </p>}
             <div className="form-row">
               <div><label htmlFor="dataCompra">Data da compra</label><input id="dataCompra" type="date" required value={form.dataCompra} onChange={event => update('dataCompra', event.target.value)} /></div>
               <div><label htmlFor="taxaContratada">Taxa contratada (%)</label><input id="taxaContratada" type="number" min="0" step="0.0001" required value={form.taxaContratada || ''} onChange={event => update('taxaContratada', Number(event.target.value))} /></div>
@@ -246,7 +295,11 @@ export default function App() {
             {notice && <p className="message success" role="status">{notice}</p>}
             <div className="form-actions">
               {editingId !== null && <button className="button secondary" type="button" onClick={cancelEdit}>Cancelar</button>}
-              <button className="button primary" type="submit" disabled={saving}>{saving ? 'Salvando…' : editingId === null ? 'Adicionar à carteira' : 'Salvar alterações'}</button>
+              <button className="button primary" type="submit"
+                disabled={saving || (editingId === null && (titulosLoading || titulosError !== ''
+                  || titulos.length === 0 || form.nomeTitulo === ''))}>
+                {saving ? 'Salvando…' : editingId === null ? 'Adicionar à carteira' : 'Salvar alterações'}
+              </button>
             </div>
           </form>
         </section>
