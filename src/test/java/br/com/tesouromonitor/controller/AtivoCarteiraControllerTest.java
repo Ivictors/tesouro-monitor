@@ -77,6 +77,33 @@ class AtivoCarteiraControllerTest {
     }
 
     @Test
+    void mantémComprasDoMesmoTituloComoLotesIndependentes() throws Exception {
+        String firstPurchase = """
+                {"nomeTitulo":"Tesouro Selic - 2031-03-01","dataCompra":"2026-01-10",
+                 "taxaContratada":0.1,"precoCompra":100.00,"quantidade":2.0}
+                """;
+        String secondPurchase = """
+                {"nomeTitulo":"Tesouro Selic - 2031-03-01","dataCompra":"2026-02-10",
+                 "taxaContratada":0.2,"precoCompra":105.00,"quantidade":1.0}
+                """;
+
+        mockMvc.perform(post("/api/ativos").contentType(MediaType.APPLICATION_JSON).content(firstPurchase))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/ativos").contentType(MediaType.APPLICATION_JSON).content(secondPurchase))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/ativos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].nomeTitulo").value("Tesouro Selic - 2031-03-01"))
+                .andExpect(jsonPath("$[1].nomeTitulo").value("Tesouro Selic - 2031-03-01"))
+                .andExpect(jsonPath("$[0].dataCompra").value("2026-01-10"))
+                .andExpect(jsonPath("$[0].precoCompra").value(100.00))
+                .andExpect(jsonPath("$[1].dataCompra").value("2026-02-10"))
+                .andExpect(jsonPath("$[1].precoCompra").value(105.00));
+    }
+
+    @Test
     void retornaNotFoundParaAtivoInexistente() throws Exception {
         mockMvc.perform(get("/api/ativos/{id}", 999999))
                 .andExpect(status().isNotFound())
