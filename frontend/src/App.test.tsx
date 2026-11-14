@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -76,11 +76,19 @@ function setupApi(options: {
   alerts?: object[]
   failSummary?: boolean
   failSync?: boolean
+  titles?: { nomeTitulo: string }[]
+  failTitles?: boolean
 } = {}) {
   const summaries = [...(options.summaries ?? [emptySummary])]
   let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0 }
+  let titleRequests = 0
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
+    if (url === '/api/titulos') {
+      titleRequests++
+      if (options.failTitles && titleRequests === 1) return response({ title: 'Catálogo indisponível' }, 503)
+      return response(options.titles ?? [{ nomeTitulo: active.nomeTitulo }])
+    }
     if (url === '/api/sincronizacao' && init?.method === 'POST') return options.failSync
       ? response({
         emAndamento: false,
@@ -166,6 +174,7 @@ describe('painel e gestão da carteira', () => {
 
     expect(await screen.findByText('Sincronização concluída com sucesso.')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/sincronizacao', expect.objectContaining({ method: 'POST' }))
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/titulos')).toHaveLength(2))
   })
 
   it('apresenta o erro de uma sincronização sem perder o status da execução', async () => {
@@ -185,7 +194,7 @@ describe('painel e gestão da carteira', () => {
     render(<App />)
     expect(await screen.findByText(/Sua carteira começa com o primeiro título/)).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Título e vencimento'), active.nomeTitulo)
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Título e vencimento' }), active.nomeTitulo)
     await user.type(screen.getByLabelText('Data da compra'), active.dataCompra)
     await user.type(screen.getByLabelText('Taxa contratada (%)'), '0.1')
     await user.type(screen.getByLabelText('Preço unitário de compra'), '100')
@@ -195,6 +204,65 @@ describe('painel e gestão da carteira', () => {
     expect(await screen.findByText('Ativo cadastrado.')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/ativos', expect.objectContaining({ method: 'POST' }))
     expect((await screen.findAllByText(active.nomeTitulo)).length).toBeGreaterThan(0)
+  })
+
+  it('AC-21-02 T2-T1: seleciona nome canônico e preserva os campos da compra no cadastro', async () => {
+    const user = userEvent.setup()
+    const catalogTitle = 'Tesouro IPCA+ - 2035-05-15'
+    const fetchMock = setupApi({ titles: [{ nomeTitulo: catalogTitle }] })
+    render(<App />)
+
+    const titleSelect = await screen.findByRole('combobox', { name: 'Título e vencimento' })
+    await user.selectOptions(titleSelect, catalogTitle)
+    await user.type(screen.getByLabelText('Data da compra'), '2026-02-03')
+    fireEvent.change(screen.getByLabelText('Taxa contratada (%)'), { target: { value: '0.07' } })
+    await user.type(screen.getByLabelText('Preço unitário de compra'), '123.45')
+    await user.type(screen.getByLabelText('Quantidade de títulos'), '1.5')
+    await user.click(screen.getByRole('button', { name: 'Adicionar à carteira' }))
+
+    await screen.findByText('Ativo cadastrado.')
+    const createRequest = fetchMock.mock.calls.find(([url, init]) =>
+      String(url) === '/api/ativos' && init?.method === 'POST')
+    expect(JSON.parse(String(createRequest?.[1]?.body))).toEqual({
+      nomeTitulo: catalogTitle,
+      dataCompra: '2026-02-03',
+      taxaContratada: 0.07,
+      precoCompra: 123.45,
+      quantidade: 1.5,
+    })
+  })
+
+  it('AC-21-04 T2-T2: explica catálogo vazio e não oferece opções fictícias', async () => {
+    setupApi({ titles: [] })
+    render(<App />)
+
+    expect(await screen.findByText(/nenhum título oficial disponível/i)).toBeInTheDocument()
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Adicionar à carteira' })).toBeDisabled()
+  })
+
+  it('AC-21-04 T2-T3: permite tentar novamente quando o catálogo falha', async () => {
+    const user = userEvent.setup()
+    const fetchMock = setupApi({ failTitles: true, titles: [{ nomeTitulo: active.nomeTitulo }] })
+    render(<App />)
+
+    expect(await screen.findByText(/não foi possível carregar os títulos/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+
+    expect(await screen.findByRole('option', { name: active.nomeTitulo })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/titulos')).toHaveLength(2)
+  })
+
+  it('AC-21-03 T2-T4: preserva o título de um lote salvo ausente do catálogo atual ao editar', async () => {
+    const user = userEvent.setup()
+    setupApi({ summaries: [populatedSummary], titles: [{ nomeTitulo: 'Tesouro IPCA+ - 2035-05-15' }] })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Editar' }))
+
+    const titleSelect = screen.getByRole('combobox', { name: 'Título e vencimento' })
+    expect(titleSelect).toHaveValue(active.nomeTitulo)
+    expect(screen.getByRole('option', { name: new RegExp(`${active.nomeTitulo}.*já cadastrado`) })).toBeInTheDocument()
   })
 
   it('mostra totais, histórico filtrável e permite marcar alerta como lido', async () => {
