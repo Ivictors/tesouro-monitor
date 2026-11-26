@@ -5,6 +5,7 @@ import br.com.tesouromonitor.dto.SincronizacaoStatusDTO;
 import br.com.tesouromonitor.dto.TesouroResponseDTO;
 import br.com.tesouromonitor.repository.AtivoCarteiraRepository;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,7 +22,8 @@ public class CotacaoSincronizacaoService {
     private final AtivoCarteiraRepository ativoCarteiraRepository;
     private final AtomicBoolean emAndamento = new AtomicBoolean();
     private volatile SincronizacaoStatusDTO status = new SincronizacaoStatusDTO(
-            false, null, null, null, null, null, "Nenhuma sincronização realizada nesta execução.");
+            false, null, null, null, null, null, "Nenhuma sincroniza\u00e7\u00e3o realizada nesta execu\u00e7\u00e3o.",
+            null, null);
 
     public CotacaoSincronizacaoService(TesouroDiretoClient tesouroDiretoClient,
                                        MonitoramentoService monitoramentoService,
@@ -43,57 +45,73 @@ public class CotacaoSincronizacaoService {
         }
 
         Instant inicio = Instant.now();
+        int cotacoesPersistidas = 0;
         status = new SincronizacaoStatusDTO(true, inicio, null, null, null, null,
-                "Sincronizando cotações do Tesouro Direto.");
+                "Sincronizando cota\u00e7\u00f5es do Tesouro Direto.", null, null);
         try {
             TesouroResponseDTO resposta = tesouroDiretoClient.buscarTitulos().block();
             if (resposta == null || resposta.titulos() == null || resposta.titulos().isEmpty()) {
-                return concluirFalha(inicio, "A fonte do Tesouro Direto não retornou cotações.", null);
+                return concluirFalha(inicio, "A fonte do Tesouro Direto n\u00e3o retornou cota\u00e7\u00f5es.", null,
+                        cotacoesPersistidas);
             }
 
-            int cotacoesPersistidas = cotacaoDiariaService.salvarCotacoes(resposta.titulos());
-            int posicoesCorrespondentes = avaliarPosicoes();
+            cotacoesPersistidas = cotacaoDiariaService.salvarCotacoes(resposta.titulos());
+            ResultadoAvaliacao resultadoAvaliacao = avaliarPosicoes();
+            boolean monitoramentoCompleto = resultadoAvaliacao.avaliacoesFalhas() == 0;
+            String mensagem = monitoramentoCompleto
+                    ? "Sincroniza\u00e7\u00e3o conclu\u00edda com sucesso."
+                    : "Cota\u00e7\u00f5es importadas, mas o monitoramento ficou incompleto: falha ao avaliar "
+                            + resultadoAvaliacao.avaliacoesFalhas() + " posi\u00e7\u00e3o(\u00f5es).";
             status = new SincronizacaoStatusDTO(false, inicio, Instant.now(), true,
-                    cotacoesPersistidas, posicoesCorrespondentes,
-                    "Sincronização concluída com sucesso.");
-            log.info("Sincronização concluída: {} cotações persistidas, {} posições correspondentes.",
-                    cotacoesPersistidas, posicoesCorrespondentes);
+                    cotacoesPersistidas, resultadoAvaliacao.posicoesCorrespondentes(), mensagem,
+                    resultadoAvaliacao.avaliacoesFalhas(), monitoramentoCompleto);
+            log.info("Sincroniza\u00e7\u00e3o conclu\u00edda: {} cota\u00e7\u00f5es persistidas, {} posi\u00e7\u00f5es "
+                            + "correspondentes, {} falhas de avalia\u00e7\u00e3o.", cotacoesPersistidas,
+                    resultadoAvaliacao.posicoesCorrespondentes(), resultadoAvaliacao.avaliacoesFalhas());
             return status;
         } catch (RuntimeException exception) {
             return concluirFalha(inicio,
-                    "Não foi possível sincronizar as cotações. Verifique a conexão e a configuração da fonte.",
-                    exception);
+                    "N\u00e3o foi poss\u00edvel sincronizar as cota\u00e7\u00f5es. Verifique a conex\u00e3o e a configura\u00e7\u00e3o da fonte.",
+                    exception, cotacoesPersistidas);
         } finally {
             emAndamento.set(false);
         }
     }
 
-    private int avaliarPosicoes() {
+    private ResultadoAvaliacao avaliarPosicoes() {
         int correspondentes = 0;
+        int falhas = 0;
         for (AtivoCarteira ativo : ativoCarteiraRepository.findAll()) {
-            var cotacao = cotacaoDiariaService.cotacaoMaisRecente(ativo.getNomeTitulo());
-            if (cotacao.isEmpty()) {
-                continue;
-            }
-            correspondentes++;
+            LocalDate dataCotacao = null;
             try {
+                var cotacao = cotacaoDiariaService.cotacaoMaisRecente(ativo.getNomeTitulo());
+                if (cotacao.isEmpty()) {
+                    continue;
+                }
+                dataCotacao = cotacao.orElseThrow().getDataCotacao();
+                correspondentes++;
                 monitoramentoService.avaliarAgio(ativo, cotacao.orElseThrow());
             } catch (RuntimeException exception) {
-                log.warn("Falha ao avaliar ativo {} na data {}.", ativo.getNomeTitulo(),
-                        cotacao.orElseThrow().getDataCotacao(), exception);
+                falhas++;
+                log.warn("Falha ao avaliar ativo {} na data {}.", ativo.getNomeTitulo(), dataCotacao, exception);
             }
         }
-        return correspondentes;
+        return new ResultadoAvaliacao(correspondentes, falhas);
     }
 
-    private SincronizacaoStatusDTO concluirFalha(Instant inicio, String mensagem, RuntimeException exception) {
+    private SincronizacaoStatusDTO concluirFalha(Instant inicio, String mensagem, RuntimeException exception,
+                                                  int cotacoesPersistidas) {
         if (exception == null) {
             log.warn("{}", mensagem);
         } else {
-            log.error("Falha ao sincronizar cotações do Tesouro Direto. Tipo de falha: {}.",
+            log.error("Falha ao sincronizar cota\u00e7\u00f5es do Tesouro Direto. Tipo de falha: {}.",
                     exception.getClass().getSimpleName());
         }
-        status = new SincronizacaoStatusDTO(false, inicio, Instant.now(), false, 0, 0, mensagem);
+        status = new SincronizacaoStatusDTO(false, inicio, Instant.now(), false, cotacoesPersistidas, 0, mensagem,
+                0, false);
         return status;
+    }
+
+    private record ResultadoAvaliacao(int posicoesCorrespondentes, int avaliacoesFalhas) {
     }
 }

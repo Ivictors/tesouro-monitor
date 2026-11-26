@@ -9,5 +9,7 @@ public record SincronizacaoStatusDTO(
         Boolean sucesso,
         Integer cotacoesPersistidas,
         Integer posicoesCorrespondentes,
-        String mensagem) {
+        String mensagem,
+        Integer avaliacoesFalhas,
+        Boolean monitoramentoCompleto) {
 }

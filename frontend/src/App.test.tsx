@@ -76,6 +76,7 @@ function setupApi(options: {
   alerts?: { alertas: object[]; pagina: number; tamanho: number; total: number; limitePercentual: number }[]
   failSummary?: boolean
   failSync?: boolean
+  partialSync?: boolean
   titles?: { nomeTitulo: string }[]
   failTitles?: boolean
 } = {}) {
@@ -89,6 +90,17 @@ function setupApi(options: {
       if (options.failTitles && titleRequests === 1) return response({ title: 'Catálogo indisponível' }, 503)
       return response(options.titles ?? [{ nomeTitulo: active.nomeTitulo }])
     }
+    if (url === '/api/sincronizacao' && init?.method === 'POST' && options.partialSync) return response({
+      emAndamento: false,
+      iniciadaEm: '2026-10-05T13:00:00Z',
+      concluidaEm: '2026-10-05T13:00:01Z',
+      sucesso: true,
+      cotacoesPersistidas: 2,
+      posicoesCorrespondentes: 2,
+      avaliacoesFalhas: 1,
+      monitoramentoCompleto: false,
+      mensagem: 'Cotações importadas, mas o monitoramento ficou incompleto: falha ao avaliar 1 posição.',
+    })
     if (url === '/api/sincronizacao' && init?.method === 'POST') return options.failSync
       ? response({
         emAndamento: false,
@@ -322,6 +334,17 @@ describe('painel e gestão da carteira', () => {
     expect(screen.queryByText(/5%/)).not.toBeInTheDocument()
     resolveAlertas?.(response({ title: 'Erro' }, 503))
     await waitFor(() => expect(screen.queryByText(/5%/)).not.toBeInTheDocument())
+  })
+
+  it('avisa quando as cotações foram importadas, mas o monitoramento ficou incompleto', async () => {
+    const user = userEvent.setup()
+    setupApi({ partialSync: true })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sincronizar cotações' }))
+
+    expect(await screen.findByText(/Cotações importadas, mas o monitoramento ficou incompleto/)).toBeInTheDocument()
+    expect(screen.queryByText('Sincronização concluída com sucesso.')).not.toBeInTheDocument()
   })
 
   it('edita um ativo existente', async () => {

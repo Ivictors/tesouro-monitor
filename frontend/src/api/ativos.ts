@@ -77,6 +77,8 @@ export type SincronizacaoStatus = {
   cotacoesPersistidas: number | null
   posicoesCorrespondentes: number | null
   mensagem: string
+  avaliacoesFalhas: number | null
+  monitoramentoCompleto: boolean | null
 }
 
 async function request<T>(url: string, init?: RequestInit): Promise<T> {

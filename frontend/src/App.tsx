@@ -51,6 +51,7 @@ export default function App() {
   const [syncRunning, setSyncRunning] = useState(false)
   const [syncError, setSyncError] = useState('')
   const [syncNotice, setSyncNotice] = useState('')
+  const [syncWarning, setSyncWarning] = useState('')
   const [titulos, setTitulos] = useState<TituloDisponivel[]>([])
   const [titulosLoading, setTitulosLoading] = useState(true)
   const [titulosError, setTitulosError] = useState('')
@@ -94,7 +95,10 @@ export default function App() {
   useEffect(() => { void loadTitulos() }, [loadTitulos])
 
   useEffect(() => {
-    void ativosApi.statusSincronizacao().then(setSyncStatus).catch(() => {
+    void ativosApi.statusSincronizacao().then(status => {
+      setSyncStatus(status)
+      if (status.sucesso && status.monitoramentoCompleto === false) setSyncWarning(status.mensagem)
+    }).catch(() => {
       setSyncError('Não foi possível consultar o estado da sincronização.')
     })
   }, [])
@@ -103,11 +107,13 @@ export default function App() {
     setSyncRunning(true)
     setSyncError('')
     setSyncNotice('')
+    setSyncWarning('')
     try {
       const result = await ativosApi.sincronizar()
       setSyncStatus(result)
       if (result.sucesso) {
-        setSyncNotice(result.mensagem)
+        if (result.monitoramentoCompleto === false) setSyncWarning(result.mensagem)
+        else setSyncNotice(result.mensagem)
         await loadTitulos()
       } else {
         setSyncError(result.mensagem)
@@ -249,6 +255,7 @@ export default function App() {
       {error && <p className="message error" role="alert">{error}</p>}
       {syncError && <p className="message error" role="alert">{syncError}</p>}
       {syncNotice && <p className="message success" role="status">{syncNotice}</p>}
+      {syncWarning && <p className="message warning" role="status">{syncWarning}</p>}
 
       <section className="summary-grid" aria-label="Resumo financeiro">
         <article className="summary-card"><span>Valor investido</span><strong>{money(resumo?.totalInvestido ?? null)}</strong></article>
