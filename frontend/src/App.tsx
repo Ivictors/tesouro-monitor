@@ -33,6 +33,7 @@ function date(value: string | null) {
 export default function App() {
   const [resumo, setResumo] = useState<ResumoCarteira | null>(null)
   const [alertas, setAlertas] = useState<Alerta[]>([])
+  const [limiteAlerta, setLimiteAlerta] = useState<number | null>(null)
   const [form, setForm] = useState<AtivoInput>(emptyForm)
   const [editingId, setEditingId] = useState<number | null>(null)
   const [selectedId, setSelectedId] = useState<number | null>(null)
@@ -57,6 +58,7 @@ export default function App() {
   const loadAlerts = useCallback(async () => {
     const page = await ativosApi.alertas()
     setAlertas(page.alertas)
+    setLimiteAlerta(page.limitePercentual)
   }, [])
 
   const load = useCallback(async () => {
@@ -341,10 +343,10 @@ export default function App() {
         </section>
 
         <section id="alertas" aria-labelledby="alerts-title">
-          <div className="panel-heading"><span className="step">04</span><div><p className="eyebrow">VALORIZAÇÃO ≥ 5%</p><h2 id="alerts-title">Alertas recentes</h2></div></div>
+          <div className="panel-heading"><span className="step">04</span><div><p className="eyebrow">{limiteAlerta === null ? 'LIMITE INDISPONÍVEL' : `VALORIZAÇÃO ≥ ${percent.format(limiteAlerta)}%`}</p><h2 id="alerts-title">Alertas recentes</h2></div></div>
           {alertas.length === 0 && <p className="empty-state">Nenhum alerta de valorização até agora.</p>}
           {alertas.length > 0 && <ul className="alert-list">{alertas.map(alerta => <li className={alerta.lido ? 'alert-item read' : 'alert-item'} key={alerta.id}>
-            <div><strong>{alerta.nomeAtivo}</strong><span className="subcell">{percent.format(alerta.percentualObservado)}% em {date(alerta.dataCotacao)}</span></div>
+            <div><strong>{alerta.nomeAtivo}</strong><span className="subcell">{percent.format(alerta.percentualObservado)}% (limite {percent.format(alerta.limitePercentual)}%) em {date(alerta.dataCotacao)}</span></div>
             {!alerta.lido && <button type="button" className="text-button" onClick={() => void markRead(alerta)}>Marcar como lido</button>}
             {alerta.lido && <span className="read-label">Lido</span>}
           </li>)}</ul>}

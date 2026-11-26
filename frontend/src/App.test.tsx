@@ -73,14 +73,14 @@ function response(data: unknown, status = 200) {
 
 function setupApi(options: {
   summaries?: object[]
-  alerts?: object[]
+  alerts?: { alertas: object[]; pagina: number; tamanho: number; total: number; limitePercentual: number }[]
   failSummary?: boolean
   failSync?: boolean
   titles?: { nomeTitulo: string }[]
   failTitles?: boolean
 } = {}) {
   const summaries = [...(options.summaries ?? [emptySummary])]
-  let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0 }
+  let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0, limitePercentual: 5 }
   let titleRequests = 0
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
@@ -132,7 +132,7 @@ function setupApi(options: {
     if (url.startsWith('/api/alertas')) {
       if (url.includes('/lido')) {
         const readAlert = { ...alert, lido: true, lidoEm: '2026-10-02T11:00:00' }
-        currentAlerts = { alertas: [readAlert], pagina: 0, tamanho: 20, total: 1 }
+        currentAlerts = { alertas: [readAlert], pagina: 0, tamanho: 20, total: 1, limitePercentual: currentAlerts.limitePercentual }
         return response(readAlert)
       }
       return response(currentAlerts)
@@ -269,12 +269,14 @@ describe('painel e gestão da carteira', () => {
     const user = userEvent.setup()
     const fetchMock = setupApi({
       summaries: [populatedSummary],
-      alerts: [{ alertas: [alert], pagina: 0, tamanho: 20, total: 1 }],
+      alerts: [{ alertas: [alert], pagina: 0, tamanho: 20, total: 1, limitePercentual: 7.25 }],
     })
     render(<App />)
 
     expect(await screen.findByText(/210,00/)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Alertas recentes' })).toBeInTheDocument()
+    expect(await screen.findByText(/5,00% \(limite 5,00%\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/7,25%/)).toBeInTheDocument()
     expect((await screen.findAllByText(active.nomeTitulo)).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getAllByRole('cell', { name: /105,00/ }).length).toBeGreaterThanOrEqual(2))
 
@@ -290,6 +292,36 @@ describe('painel e gestão da carteira', () => {
     await user.click(screen.getByRole('button', { name: 'Marcar como lido' }))
     expect(await screen.findByText('Lido')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/alertas/7/lido', expect.objectContaining({ method: 'PATCH' }))
+  })
+
+  it('exibe o limite efetivo da API mesmo com a lista de alertas vazia', async () => {
+    setupApi({ alerts: [{ alertas: [], pagina: 0, tamanho: 20, total: 0, limitePercentual: 7.25 }] })
+    render(<App />)
+
+    expect(await screen.findByText(/7,25%/)).toBeInTheDocument()
+    expect(screen.getByText(/Nenhum alerta/)).toBeInTheDocument()
+    expect(screen.queryByText(/≥ 5%/)).not.toBeInTheDocument()
+  })
+
+  it('não exibe um limite presumido enquanto o limite efetivo ainda não foi carregado', async () => {
+    let resolveAlertas: ((value: ReturnType<typeof response>) => void) | undefined
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.startsWith('/api/alertas')) {
+        return new Promise<ReturnType<typeof response>>(resolve => { resolveAlertas = resolve })
+      }
+      if (url === '/api/ativos/resumo') return response(emptySummary)
+      if (url === '/api/titulos') return response([])
+      if (url === '/api/sincronizacao') return response({ emAndamento: false, iniciadaEm: null, concluidaEm: null, sucesso: null, cotacoesPersistidas: null, posicoesCorrespondentes: null, mensagem: 'Nenhuma sincronização realizada nesta execução.' })
+      return response([])
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />)
+
+    expect(await screen.findByText(/LIMITE/)).toBeInTheDocument()
+    expect(screen.queryByText(/5%/)).not.toBeInTheDocument()
+    resolveAlertas?.(response({ title: 'Erro' }, 503))
+    await waitFor(() => expect(screen.queryByText(/5%/)).not.toBeInTheDocument())
   })
 
   it('edita um ativo existente', async () => {

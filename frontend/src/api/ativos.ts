@@ -66,6 +66,7 @@ export type AlertasRecentes = {
   pagina: number
   tamanho: number
   total: number
+  limitePercentual: number
 }
 
 export type SincronizacaoStatus = {

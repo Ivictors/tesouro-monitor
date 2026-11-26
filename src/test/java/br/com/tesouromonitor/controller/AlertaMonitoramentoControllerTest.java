@@ -21,7 +21,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.web.servlet.MockMvc;
 
-@SpringBootTest
+@SpringBootTest(properties = "tesouro.monitoramento.limite-agio-percentual=7.25")
 @AutoConfigureMockMvc
 class AlertaMonitoramentoControllerTest {
 
@@ -57,9 +57,22 @@ class AlertaMonitoramentoControllerTest {
         mockMvc.perform(get("/api/alertas").param("tamanho", "10"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.total").value(1))
+                .andExpect(jsonPath("$.limitePercentual").value(7.25))
                 .andExpect(jsonPath("$.alertas[0].percentualObservado").value(5.00))
+                .andExpect(jsonPath("$.alertas[0].limitePercentual").value(5.00))
                 .andExpect(jsonPath("$.alertas[0].regraAplicada").value("VALORIZACAO_ACIMA_LIMITE"))
                 .andExpect(jsonPath("$.alertas[0].lido").value(false));
+    }
+
+    @Test
+    void incluiLimiteEfetivoMesmoSemAlertas() throws Exception {
+        alertaRepository.deleteAll();
+
+        mockMvc.perform(get("/api/alertas"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.alertas").isEmpty())
+                .andExpect(jsonPath("$.total").value(0))
+                .andExpect(jsonPath("$.limitePercentual").value(7.25));
     }
 
     @Test
