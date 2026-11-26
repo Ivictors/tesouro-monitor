@@ -11,7 +11,7 @@
 - Valores em reais e percentual são arredondados para duas casas decimais com `HALF_UP`.
 - Uma posição sem preço ou quantidade positiva, ou sem PU Venda válido, não recebe cálculo nem alerta.
 - Deságio e equilíbrio são exibidos como variação, mas nunca geram alerta.
-- O limite padrão é 5%, configurável por `TESOURO_LIMITE_AGIO_PERCENTUAL` (a configuração deve permanecer maior que zero).
+- O limite padrão é 5%, configurável por `TESOURO_LIMITE_AGIO_PERCENTUAL`. O backend valida esse limite ao iniciar e recusa valores zero ou negativos.
 - Um alerta é criado quando a variação passa de abaixo de 5% para igual ou acima de 5%. Na primeira cotação disponível, considera-se a variação anterior como 0%.
 - Enquanto a posição permanecer em 5% ou mais, não há alertas repetidos. Se cair abaixo do limite e voltar a cruzá-lo, um novo alerta pode ser criado.
 - Uma cotação e posição geram no máximo um alerta, mesmo que a sincronização seja repetida.

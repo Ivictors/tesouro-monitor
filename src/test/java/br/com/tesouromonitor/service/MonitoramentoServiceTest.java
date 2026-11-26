@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import br.com.tesouromonitor.domain.AlertaMonitoramento;
 import br.com.tesouromonitor.domain.AtivoCarteira;
 import br.com.tesouromonitor.domain.CotacaoDiaria;
+import br.com.tesouromonitor.config.MonitoramentoProperties;
 import br.com.tesouromonitor.repository.AlertaMonitoramentoRepository;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
 import java.math.BigDecimal;
@@ -33,7 +34,8 @@ class MonitoramentoServiceTest {
 
     @BeforeEach
     void setUp() {
-        service = new MonitoramentoService(cotacaoRepository, alertaRepository, new BigDecimal("5.00"));
+        MonitoramentoProperties properties = new MonitoramentoProperties();
+        service = new MonitoramentoService(cotacaoRepository, alertaRepository, properties);
         ativo = new AtivoCarteira(4L, "Tesouro Selic - 2031-03-01", LocalDate.of(2026, 1, 10),
                 new BigDecimal("0.1"), new BigDecimal("100.00"), new BigDecimal("2.00"));
     }

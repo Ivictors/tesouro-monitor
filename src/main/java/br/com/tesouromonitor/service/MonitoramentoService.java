@@ -3,6 +3,7 @@ package br.com.tesouromonitor.service;
 import br.com.tesouromonitor.domain.AlertaMonitoramento;
 import br.com.tesouromonitor.domain.AtivoCarteira;
 import br.com.tesouromonitor.domain.CotacaoDiaria;
+import br.com.tesouromonitor.config.MonitoramentoProperties;
 import br.com.tesouromonitor.dto.ResultadoAgioDTO;
 import br.com.tesouromonitor.repository.AlertaMonitoramentoRepository;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
@@ -12,7 +13,6 @@ import java.time.LocalDateTime;
 import java.util.Optional;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -30,11 +30,10 @@ public class MonitoramentoService {
 
     public MonitoramentoService(CotacaoDiariaRepository cotacaoRepository,
                                 AlertaMonitoramentoRepository alertaRepository,
-                                @Value("${tesouro.monitoramento.limite-agio-percentual:5.00}")
-                                BigDecimal limiteAgioPercentual) {
+                                MonitoramentoProperties monitoramentoProperties) {
         this.cotacaoRepository = cotacaoRepository;
         this.alertaRepository = alertaRepository;
-        this.limiteAgioPercentual = limiteAgioPercentual;
+        this.limiteAgioPercentual = monitoramentoProperties.getLimiteAgioPercentual();
     }
 
     @Transactional
