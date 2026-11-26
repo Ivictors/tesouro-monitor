@@ -35,7 +35,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 class PostgresMigrationTest {
 
     @Container
-    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final PostgreSQLContainer<?> POSTGRES = new PostgreSQLContainer<>("postgres:18.6");
 
     @Autowired
     private AtivoCarteiraRepository repository;
