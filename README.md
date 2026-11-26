@@ -114,3 +114,16 @@ Pare o backend com `Ctrl+C` no terminal correspondente. Pare o servidor de desen
 `.env`, arquivos Spring ativos (`.properties`, `.yml`, `.yaml`), dados e backups locais não devem ser versionados. Apenas arquivos `*-example` e `.env.example` são apropriados para o Git; exemplos não devem conter segredos. O `.env.example` contém valores fictícios de banco.
 
 O MVP é single-user/local e backend e PostgreSQL ficam limitados a loopback por padrão. Não exponha a porta 8080 à rede ou à internet: autenticação e autorização ainda não foram implementadas. A aplicação não envia notificações externas; alertas ficam disponíveis no próprio painel/API. Veja [`docs/guardrails.md`](docs/guardrails.md) e [`docs/regras-monitoramento.md`](docs/regras-monitoramento.md).
+
+## Padrão de documentação e configuração
+
+Este repositório existe para acompanhar dados de títulos públicos e suas cotações. O README acima apresenta o escopo, a arquitetura e as tecnologias específicas do projeto; esta seção padroniza o ponto de entrada para quem deseja reproduzi-lo localmente.
+
+### Clonar e configurar
+
+~~~powershell
+git clone https://github.com/Ivictors/tesouro-monitor.git
+cd tesouro-monitor
+~~~
+
+Consulte os pré-requisitos e comandos de execução descritos neste README antes de iniciar. Use variáveis de ambiente, arquivos locais ignorados pelo Git e serviços de desenvolvimento para credenciais; não substitua placeholders por segredos no README e não versione chaves, tokens ou senhas.
