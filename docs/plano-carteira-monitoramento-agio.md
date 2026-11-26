@@ -6,7 +6,9 @@ Permitir que a pessoa registre cada compra de Tesouro Direto, associe-a sem erro
 
 O produto continua pessoal e local. Este plano não inclui recomendação de compra/venda, cálculo líquido de impostos/taxas, integração com corretora, Telegram, publicação pública ou múltiplos usuários.
 
-## Estado atual verificado na `main`
+## Estado inicial verificado na `main`
+
+Este retrato corresponde ao ponto de partida da análise, antes da implementação da issue #21. A implementação descrita abaixo está na branch `feature/plano-carteira-agio`, no PR [#24](https://github.com/Ivictors/tesouro-monitor/pull/24), ainda aberto; portanto, não representa o estado da `main`.
 
 O fluxo principal já existe; não deve ser reimplementado:
 
@@ -19,7 +21,7 @@ O fluxo principal já existe; não deve ser reimplementado:
 
 Referências de regra: [`regras-monitoramento.md`](regras-monitoramento.md), [`integracao-tesouro.md`](integracao-tesouro.md) e [`frontend.md`](frontend.md).
 
-## Lacunas para fechar a experiência
+## Lacunas identificadas no baseline
 
 1. **Vinculação manual frágil:** o formulário aceita texto livre. Diferença de grafia ou vencimento impede encontrar a cotação correspondente. A recomendação é escolher o título a partir da lista oficial já sincronizada e guardar exatamente a chave canônica que o backend usa.
 2. **Limite divergente na interface:** o backend permite configurar o limite, mas a seção de alertas apresenta `≥ 5%` fixo. A interface deve obter o limite efetivo da API ou usar um texto que não contradiga a configuração.
@@ -29,6 +31,20 @@ Referências de regra: [`regras-monitoramento.md`](regras-monitoramento.md), [`i
 ## Decisões de implementação definidas
 
 Conforme a issue #21, o cadastro seleciona o título do catálogo oficial sincronizado; nome livre não é o fluxo de aceite. O catálogo vem das cotações mais recentes e mantém a chave canônica `Tipo Titulo + Data Vencimento`. Cada compra fica em uma linha/lote independente, permitindo datas e preços diferentes para o mesmo título. O backend continua responsável pelos cálculos e pelo alerta; o frontend apresenta os resultados.
+
+## Estado da implementação na branch
+
+Em 2026-11-26, o PR #24 contém os trabalhos abaixo, cada um em commit próprio:
+
+- Issue #21: catálogo oficial e seleção do título no cadastro (`2a3c7ac`).
+- Precisão decimal e migração V3 (`401b281`). A migração preserva os valores existentes e permite quatro casas para taxa e quantidade; decimais que já tenham sido arredondados pela escala anterior não podem ser recuperados.
+- Validação do limite no startup (`13ffedf`) e exposição do limite efetivo na API/UI (`038b3ce`).
+- Relato de falhas parciais de avaliação durante a sincronização (`10c9ef3`).
+- Testes de preservação da carteira diante de CSV inválido (`1169222`) e contratos HTTP do frontend (`d3cd3a2`).
+
+A issue #22 continua aberta: ainda faltam os estados explícitos por posição para cotação ausente, falha/ausência de sincronização e comparação da posição com o limite, além da apresentação dos dados de cotação por posição conforme os critérios da issue. A issue #23 também continua aberta: faltam cenários de cruzamento, deduplicação e novo cruzamento, cobertura PostgreSQL efetivamente executada e validação ponta a ponta completa. Os testes PostgreSQL adicionados dependem do Docker; nesta máquina o daemon não estava disponível.
+
+O CI do PR para o último commit de implementação (`d3cd3a2`) passou. O PR permanece aberto e não foi mesclado.
 
 ## Critérios de aceitação
 
@@ -43,16 +59,16 @@ Conforme a issue #21, o cadastro seleciona o título do catálogo oficial sincro
 - **AC-09 — Privacidade:** a carteira e os alertas permanecem locais; nenhuma credencial ou informação da carteira é enviada à fonte pública.
 - **AC-10 — Qualidade:** testes unitários cobrem cálculo e cruzamentos; testes de integração cobrem persistência e sincronização; testes frontend cobrem seleção, estados vazios/erro e apresentação do limite; CI executa backend e frontend.
 
-## Etapas de implementação propostas
+## Etapas do plano e situação
 
-### Etapa 0 — Preparação e baseline
+### Etapa 0 — Preparação e baseline — concluída
 
 - Preservar as regras já aprovadas em `docs/regras-monitoramento.md`.
 - Confirmar nomes/campos do CSV oficial e a chave canônica com a fixture e o parser existentes.
 - Issues de execução abertas e ligadas aos ACs acima: [#21 catálogo oficial](https://github.com/Ivictors/tesouro-monitor/issues/21), [#22 limite e estado da cotação](https://github.com/Ivictors/tesouro-monitor/issues/22), [#23 testes do fluxo](https://github.com/Ivictors/tesouro-monitor/issues/23).
 - **Aceite:** contrato do catálogo e formato da chave documentados; nenhuma regra financeira nova introduzida.
 
-### Etapa 1 — Catálogo oficial para cadastro
+### Etapa 1 — Catálogo oficial para cadastro — implementada na branch (issue #21)
 
 Issue: [#21](https://github.com/Ivictors/tesouro-monitor/issues/21).
 
@@ -62,7 +78,7 @@ Issue: [#21](https://github.com/Ivictors/tesouro-monitor/issues/21).
 - **Testes:** serviço/repositório com nomes repetidos em datas diferentes; endpoint; componentes React para seleção, loading, vazio e erro.
 - **Aceite:** AC-01, AC-02 e AC-03.
 
-### Etapa 2 — Expor limite e tornar o estado legível
+### Etapa 2 — Expor limite e tornar o estado legível — parcial na branch (issue #22 aberta)
 
 Issue: [#22](https://github.com/Ivictors/tesouro-monitor/issues/22).
 
@@ -72,7 +88,7 @@ Issue: [#22](https://github.com/Ivictors/tesouro-monitor/issues/22).
 - **Testes:** valor padrão, valor configurado, contrato API e renderização sem cálculo financeiro no frontend.
 - **Aceite:** AC-04, AC-07 e AC-08.
 
-### Etapa 3 — Completar cenários de sincronização e alertas
+### Etapa 3 — Completar cenários de sincronização e alertas — parcial na branch (issue #23 aberta)
 
 Issue: [#23](https://github.com/Ivictors/tesouro-monitor/issues/23).
 Executar após as mudanças de contrato e interface das issues #21 e #22, para validar o fluxo com as decisões finais já aplicadas.
@@ -83,7 +99,7 @@ Executar após as mudanças de contrato e interface das issues #21 e #22, para v
 - **Testes:** unitários para limiar e cruzamento; integração com PostgreSQL/Testcontainers; fonte HTTP simulada; regressão sem chamada externa.
 - **Aceite:** AC-05, AC-06, AC-08 e AC-09.
 
-### Etapa 4 — Validação ponta a ponta e entrega
+### Etapa 4 — Validação ponta a ponta e entrega — pendente
 
 Complementa a issue [#23](https://github.com/Ivictors/tesouro-monitor/issues/23).
 

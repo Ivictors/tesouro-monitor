@@ -61,3 +61,7 @@ Issue: [#21 — Selecionar títulos do catálogo oficial](https://github.com/Ivi
 ## Commits
 
 Aplicar TDD por fatia, com testes primeiro e implementação mínima depois. Usar commits Conventional Commits em português por tarefa concluída; validar todos os critérios da issue antes do PR. O PR aguarda revisão e merge manual do usuário.
+
+## Resultado na branch de implementação
+
+A implementação do escopo da issue #21 está no commit `2a3c7ac` (`feat: seleciona títulos oficiais no cadastro`) da branch `feature/plano-carteira-agio`. O PR [#24](https://github.com/Ivictors/tesouro-monitor/pull/24) está aberto contra `main`; não houve merge. Os critérios da issue foram implementados e cobertos pelos testes de catálogo e frontend no CI. As issues #22 e #23 permanecem fora do aceite da #21 e continuam abertas para os critérios adicionais descritos no plano geral.
