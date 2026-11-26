@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { cleanup, render, screen, waitFor } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import App from './App'
 
@@ -73,14 +73,34 @@ function response(data: unknown, status = 200) {
 
 function setupApi(options: {
   summaries?: object[]
-  alerts?: object[]
+  alerts?: { alertas: object[]; pagina: number; tamanho: number; total: number; limitePercentual: number }[]
   failSummary?: boolean
   failSync?: boolean
+  partialSync?: boolean
+  titles?: { nomeTitulo: string }[]
+  failTitles?: boolean
 } = {}) {
   const summaries = [...(options.summaries ?? [emptySummary])]
-  let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0 }
+  let currentAlerts = options.alerts?.[0] ?? { alertas: [], pagina: 0, tamanho: 20, total: 0, limitePercentual: 5 }
+  let titleRequests = 0
   const fetchMock = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input)
+    if (url === '/api/titulos') {
+      titleRequests++
+      if (options.failTitles && titleRequests === 1) return response({ title: 'Catálogo indisponível' }, 503)
+      return response(options.titles ?? [{ nomeTitulo: active.nomeTitulo }])
+    }
+    if (url === '/api/sincronizacao' && init?.method === 'POST' && options.partialSync) return response({
+      emAndamento: false,
+      iniciadaEm: '2026-10-05T13:00:00Z',
+      concluidaEm: '2026-10-05T13:00:01Z',
+      sucesso: true,
+      cotacoesPersistidas: 2,
+      posicoesCorrespondentes: 2,
+      avaliacoesFalhas: 1,
+      monitoramentoCompleto: false,
+      mensagem: 'Cotações importadas, mas o monitoramento ficou incompleto: falha ao avaliar 1 posição.',
+    })
     if (url === '/api/sincronizacao' && init?.method === 'POST') return options.failSync
       ? response({
         emAndamento: false,
@@ -124,7 +144,7 @@ function setupApi(options: {
     if (url.startsWith('/api/alertas')) {
       if (url.includes('/lido')) {
         const readAlert = { ...alert, lido: true, lidoEm: '2026-10-02T11:00:00' }
-        currentAlerts = { alertas: [readAlert], pagina: 0, tamanho: 20, total: 1 }
+        currentAlerts = { alertas: [readAlert], pagina: 0, tamanho: 20, total: 1, limitePercentual: currentAlerts.limitePercentual }
         return response(readAlert)
       }
       return response(currentAlerts)
@@ -166,6 +186,7 @@ describe('painel e gestão da carteira', () => {
 
     expect(await screen.findByText('Sincronização concluída com sucesso.')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/sincronizacao', expect.objectContaining({ method: 'POST' }))
+    await waitFor(() => expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/titulos')).toHaveLength(2))
   })
 
   it('apresenta o erro de uma sincronização sem perder o status da execução', async () => {
@@ -185,7 +206,7 @@ describe('painel e gestão da carteira', () => {
     render(<App />)
     expect(await screen.findByText(/Sua carteira começa com o primeiro título/)).toBeInTheDocument()
 
-    await user.type(screen.getByLabelText('Título e vencimento'), active.nomeTitulo)
+    await user.selectOptions(await screen.findByRole('combobox', { name: 'Título e vencimento' }), active.nomeTitulo)
     await user.type(screen.getByLabelText('Data da compra'), active.dataCompra)
     await user.type(screen.getByLabelText('Taxa contratada (%)'), '0.1')
     await user.type(screen.getByLabelText('Preço unitário de compra'), '100')
@@ -197,16 +218,77 @@ describe('painel e gestão da carteira', () => {
     expect((await screen.findAllByText(active.nomeTitulo)).length).toBeGreaterThan(0)
   })
 
+  it('AC-21-02 T2-T1: seleciona nome canônico e preserva os campos da compra no cadastro', async () => {
+    const user = userEvent.setup()
+    const catalogTitle = 'Tesouro IPCA+ - 2035-05-15'
+    const fetchMock = setupApi({ titles: [{ nomeTitulo: catalogTitle }] })
+    render(<App />)
+
+    const titleSelect = await screen.findByRole('combobox', { name: 'Título e vencimento' })
+    await user.selectOptions(titleSelect, catalogTitle)
+    await user.type(screen.getByLabelText('Data da compra'), '2026-02-03')
+    fireEvent.change(screen.getByLabelText('Taxa contratada (%)'), { target: { value: '0.07' } })
+    await user.type(screen.getByLabelText('Preço unitário de compra'), '123.45')
+    await user.type(screen.getByLabelText('Quantidade de títulos'), '1.5')
+    await user.click(screen.getByRole('button', { name: 'Adicionar à carteira' }))
+
+    await screen.findByText('Ativo cadastrado.')
+    const createRequest = fetchMock.mock.calls.find(([url, init]) =>
+      String(url) === '/api/ativos' && init?.method === 'POST')
+    expect(JSON.parse(String(createRequest?.[1]?.body))).toEqual({
+      nomeTitulo: catalogTitle,
+      dataCompra: '2026-02-03',
+      taxaContratada: 0.07,
+      precoCompra: 123.45,
+      quantidade: 1.5,
+    })
+  })
+
+  it('AC-21-04 T2-T2: explica catálogo vazio e não oferece opções fictícias', async () => {
+    setupApi({ titles: [] })
+    render(<App />)
+
+    expect(await screen.findByText(/nenhum título oficial disponível/i)).toBeInTheDocument()
+    expect(screen.getAllByRole('option')).toHaveLength(1)
+    expect(screen.getByRole('button', { name: 'Adicionar à carteira' })).toBeDisabled()
+  })
+
+  it('AC-21-04 T2-T3: permite tentar novamente quando o catálogo falha', async () => {
+    const user = userEvent.setup()
+    const fetchMock = setupApi({ failTitles: true, titles: [{ nomeTitulo: active.nomeTitulo }] })
+    render(<App />)
+
+    expect(await screen.findByText(/não foi possível carregar os títulos/i)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tentar novamente' }))
+
+    expect(await screen.findByRole('option', { name: active.nomeTitulo })).toBeInTheDocument()
+    expect(fetchMock.mock.calls.filter(([url]) => String(url) === '/api/titulos')).toHaveLength(2)
+  })
+
+  it('AC-21-03 T2-T4: preserva o título de um lote salvo ausente do catálogo atual ao editar', async () => {
+    const user = userEvent.setup()
+    setupApi({ summaries: [populatedSummary], titles: [{ nomeTitulo: 'Tesouro IPCA+ - 2035-05-15' }] })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Editar' }))
+
+    const titleSelect = screen.getByRole('combobox', { name: 'Título e vencimento' })
+    expect(titleSelect).toHaveValue(active.nomeTitulo)
+    expect(screen.getByRole('option', { name: new RegExp(`${active.nomeTitulo}.*já cadastrado`) })).toBeInTheDocument()
+  })
+
   it('mostra totais, histórico filtrável e permite marcar alerta como lido', async () => {
     const user = userEvent.setup()
     const fetchMock = setupApi({
       summaries: [populatedSummary],
-      alerts: [{ alertas: [alert], pagina: 0, tamanho: 20, total: 1 }],
+      alerts: [{ alertas: [alert], pagina: 0, tamanho: 20, total: 1, limitePercentual: 7.25 }],
     })
     render(<App />)
 
     expect(await screen.findByText(/210,00/)).toBeInTheDocument()
     expect(await screen.findByRole('heading', { name: 'Alertas recentes' })).toBeInTheDocument()
+    expect(await screen.findByText(/5,00% \(limite 5,00%\)/)).toBeInTheDocument()
+    expect(await screen.findByText(/7,25%/)).toBeInTheDocument()
     expect((await screen.findAllByText(active.nomeTitulo)).length).toBeGreaterThan(0)
     await waitFor(() => expect(screen.getAllByRole('cell', { name: /105,00/ }).length).toBeGreaterThanOrEqual(2))
 
@@ -222,6 +304,47 @@ describe('painel e gestão da carteira', () => {
     await user.click(screen.getByRole('button', { name: 'Marcar como lido' }))
     expect(await screen.findByText('Lido')).toBeInTheDocument()
     expect(fetchMock).toHaveBeenCalledWith('/api/alertas/7/lido', expect.objectContaining({ method: 'PATCH' }))
+  })
+
+  it('exibe o limite efetivo da API mesmo com a lista de alertas vazia', async () => {
+    setupApi({ alerts: [{ alertas: [], pagina: 0, tamanho: 20, total: 0, limitePercentual: 7.25 }] })
+    render(<App />)
+
+    expect(await screen.findByText(/7,25%/)).toBeInTheDocument()
+    expect(screen.getByText(/Nenhum alerta/)).toBeInTheDocument()
+    expect(screen.queryByText(/≥ 5%/)).not.toBeInTheDocument()
+  })
+
+  it('não exibe um limite presumido enquanto o limite efetivo ainda não foi carregado', async () => {
+    let resolveAlertas: ((value: ReturnType<typeof response>) => void) | undefined
+    const fetchMock = vi.fn(async (input: string | URL | Request) => {
+      const url = String(input)
+      if (url.startsWith('/api/alertas')) {
+        return new Promise<ReturnType<typeof response>>(resolve => { resolveAlertas = resolve })
+      }
+      if (url === '/api/ativos/resumo') return response(emptySummary)
+      if (url === '/api/titulos') return response([])
+      if (url === '/api/sincronizacao') return response({ emAndamento: false, iniciadaEm: null, concluidaEm: null, sucesso: null, cotacoesPersistidas: null, posicoesCorrespondentes: null, mensagem: 'Nenhuma sincronização realizada nesta execução.' })
+      return response([])
+    })
+    vi.stubGlobal('fetch', fetchMock)
+    render(<App />)
+
+    expect(await screen.findByText(/LIMITE/)).toBeInTheDocument()
+    expect(screen.queryByText(/5%/)).not.toBeInTheDocument()
+    resolveAlertas?.(response({ title: 'Erro' }, 503))
+    await waitFor(() => expect(screen.queryByText(/5%/)).not.toBeInTheDocument())
+  })
+
+  it('avisa quando as cotações foram importadas, mas o monitoramento ficou incompleto', async () => {
+    const user = userEvent.setup()
+    setupApi({ partialSync: true })
+    render(<App />)
+
+    await user.click(await screen.findByRole('button', { name: 'Sincronizar cotações' }))
+
+    expect(await screen.findByText(/Cotações importadas, mas o monitoramento ficou incompleto/)).toBeInTheDocument()
+    expect(screen.queryByText('Sincronização concluída com sucesso.')).not.toBeInTheDocument()
   })
 
   it('edita um ativo existente', async () => {

@@ -1,5 +1,6 @@
 package br.com.tesouromonitor.service;
 
+import br.com.tesouromonitor.config.MonitoramentoProperties;
 import br.com.tesouromonitor.domain.AlertaMonitoramento;
 import br.com.tesouromonitor.dto.AlertaMonitoramentoResponseDTO;
 import br.com.tesouromonitor.dto.AlertasRecentesResponseDTO;
@@ -15,9 +16,12 @@ import org.springframework.transaction.annotation.Transactional;
 public class AlertaMonitoramentoService {
 
     private final AlertaMonitoramentoRepository repository;
+    private final MonitoramentoProperties monitoramentoProperties;
 
-    public AlertaMonitoramentoService(AlertaMonitoramentoRepository repository) {
+    public AlertaMonitoramentoService(AlertaMonitoramentoRepository repository,
+                                      MonitoramentoProperties monitoramentoProperties) {
         this.repository = repository;
+        this.monitoramentoProperties = monitoramentoProperties;
     }
 
     @Transactional(readOnly = true)
@@ -25,7 +29,7 @@ public class AlertaMonitoramentoService {
         Page<AlertaMonitoramentoResponseDTO> page = repository.findAllByOrderByCriadoEmDesc(pageable)
                 .map(AlertaMonitoramentoResponseDTO::from);
         return new AlertasRecentesResponseDTO(page.getContent(), page.getNumber(),
-                page.getSize(), page.getTotalElements());
+                page.getSize(), page.getTotalElements(), monitoramentoProperties.getLimiteAgioPercentual());
     }
 
     public AlertaMonitoramentoResponseDTO marcarComoLido(Long id) {

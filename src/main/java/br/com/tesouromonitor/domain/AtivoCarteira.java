@@ -1,6 +1,7 @@
 package br.com.tesouromonitor.domain;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Column;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.GenerationType;
 import jakarta.persistence.Id;
@@ -17,8 +18,11 @@ public class AtivoCarteira {
     private Long id;
     private String nomeTitulo;
     private LocalDate dataCompra;
+    @Column(precision = 40, scale = 4)
     private BigDecimal taxaContratada;
+    @Column(precision = 38, scale = 2)
     private BigDecimal precoCompra;
+    @Column(precision = 40, scale = 4)
     private BigDecimal quantidade;
 
     public AtivoCarteira() {

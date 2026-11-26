@@ -77,6 +77,80 @@ class AtivoCarteiraControllerTest {
     }
 
     @Test
+    void preservaPrecisaoPermitidaNosCamposDaCompra() throws Exception {
+        mockMvc.perform(post("/api/ativos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("""
+                                {"nomeTitulo":"Tesouro Selic 2031","dataCompra":"2026-01-10",
+                                 "taxaContratada":0.1234,"precoCompra":19943.12,"quantidade":0.1234}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.taxaContratada").value(0.1234))
+                .andExpect(jsonPath("$.precoCompra").value(19943.12))
+                .andExpect(jsonPath("$.quantidade").value(0.1234));
+    }
+
+    @Test
+    void rejeitaEscalaExcedenteNoPostEPut() throws Exception {
+        String request = """
+                {"nomeTitulo":"Tesouro Selic 2031","dataCompra":"2026-01-10",
+                 "taxaContratada":0.1234,"precoCompra":100.00,"quantidade":0.1234}
+                """;
+        long id = criarAtivo(request);
+
+        for (String invalidRequest : new String[] {
+                request.replace("0.1234,\"precoCompra\"", "0.12345,\"precoCompra\""),
+                request.replace("100.00", "100.001"),
+                request.replace("\"quantidade\":0.1234", "\"quantidade\":0.12345")
+        }) {
+            mockMvc.perform(post("/api/ativos")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidRequest))
+                    .andExpect(status().isBadRequest());
+            mockMvc.perform(put("/api/ativos/{id}", id)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(invalidRequest))
+                    .andExpect(status().isBadRequest());
+        }
+    }
+
+    private long criarAtivo(String request) throws Exception {
+        String location = mockMvc.perform(post("/api/ativos")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(request))
+                .andExpect(status().isCreated())
+                .andReturn().getResponse().getHeader("Location");
+        return Long.parseLong(location.substring(location.lastIndexOf('/') + 1));
+    }
+
+    @Test
+    void mantémComprasDoMesmoTituloComoLotesIndependentes() throws Exception {
+        String firstPurchase = """
+                {"nomeTitulo":"Tesouro Selic - 2031-03-01","dataCompra":"2026-01-10",
+                 "taxaContratada":0.1,"precoCompra":100.00,"quantidade":2.0}
+                """;
+        String secondPurchase = """
+                {"nomeTitulo":"Tesouro Selic - 2031-03-01","dataCompra":"2026-02-10",
+                 "taxaContratada":0.2,"precoCompra":105.00,"quantidade":1.0}
+                """;
+
+        mockMvc.perform(post("/api/ativos").contentType(MediaType.APPLICATION_JSON).content(firstPurchase))
+                .andExpect(status().isCreated());
+        mockMvc.perform(post("/api/ativos").contentType(MediaType.APPLICATION_JSON).content(secondPurchase))
+                .andExpect(status().isCreated());
+
+        mockMvc.perform(get("/api/ativos"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.length()").value(2))
+                .andExpect(jsonPath("$[0].nomeTitulo").value("Tesouro Selic - 2031-03-01"))
+                .andExpect(jsonPath("$[1].nomeTitulo").value("Tesouro Selic - 2031-03-01"))
+                .andExpect(jsonPath("$[0].dataCompra").value("2026-01-10"))
+                .andExpect(jsonPath("$[0].precoCompra").value(100.00))
+                .andExpect(jsonPath("$[1].dataCompra").value("2026-02-10"))
+                .andExpect(jsonPath("$[1].precoCompra").value(105.00));
+    }
+
+    @Test
     void retornaNotFoundParaAtivoInexistente() throws Exception {
         mockMvc.perform(get("/api/ativos/{id}", 999999))
                 .andExpect(status().isNotFound())

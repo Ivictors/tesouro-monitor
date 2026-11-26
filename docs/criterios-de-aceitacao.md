@@ -1,6 +1,6 @@
 # Critérios de aceitação e entrega
 
-Este documento descreve o MVP pessoal implementado. Os critérios marcados foram verificados no CI Java 25 e Node 24; as limitações conhecidas estão na seção final.
+Este documento descreve o MVP pessoal e as melhorias da carteira. Os critérios gerais abaixo têm evidências históricas de CI; o andamento da branch de trabalho e os limites da validação local estão registrados em [`plano-carteira-monitoramento-agio.md`](plano-carteira-monitoramento-agio.md). A branch `feature/plano-carteira-agio` segue no PR #24 aberto e ainda não foi integrada à `main`.
 
 ## Stack e arquitetura
 
@@ -49,3 +49,5 @@ Este documento descreve o MVP pessoal implementado. Os critérios marcados foram
 - A sincronização inicial baixa o CSV histórico completo antes de selecionar a data-base mais recente.
 - A aplicação não pode ser exposta à rede ou à internet até haver autenticação e autorização.
 - Testes de integração PostgreSQL precisam de Docker ativo para executar fora do CI.
+- Na branch do PR #24, a suíte frontend atual passou com 27 testes e `npm run build`; os testes Maven focados das alterações passaram usando JDK 21 com override de compilação, pois o ambiente local não dispõe de JDK 25. O CI do commit `d3cd3a2`, que executa com Java 25, passou.
+- Os cenários PostgreSQL/Testcontainers não foram executados localmente porque o daemon Docker não estava disponível. Os critérios completos das issues #22 e #23 seguem pendentes; ver o plano de monitoramento para a lista do que falta.

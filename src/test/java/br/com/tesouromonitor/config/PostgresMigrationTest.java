@@ -10,9 +10,13 @@ import br.com.tesouromonitor.repository.AlertaMonitoramentoRepository;
 import br.com.tesouromonitor.repository.AtivoCarteiraRepository;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
 import java.math.BigDecimal;
+import java.sql.DriverManager;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.util.UUID;
+import jakarta.persistence.EntityManager;
 import org.flywaydb.core.Flyway;
+import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -22,6 +26,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -45,6 +50,8 @@ class PostgresMigrationTest {
     private AlertaMonitoramentoRepository alertaRepository;
     @Autowired
     private Flyway flyway;
+    @Autowired
+    private EntityManager entityManager;
 
     @BeforeEach
     void limparBanco() {
@@ -63,14 +70,106 @@ class PostgresMigrationTest {
     @Test
     void executaMigracoesEInicializaRepositorioEmBancoVazio() {
         assertThat(repository.count()).isZero();
-        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("2");
+        assertThat(flyway.info().current().getVersion().getVersion()).isEqualTo("3");
+    }
+
+    @Test
+    @Transactional
+    void preservaEscalasDeQuatroCasasAposFlushEClearNoPostgres() {
+        AtivoCarteira saved = repository.save(new AtivoCarteira(null, "Tesouro Selic - 2031-03-01",
+                LocalDate.of(2026, 1, 10), new BigDecimal("0.0001"),
+                new BigDecimal("100.00"), new BigDecimal("0.1234")));
+        entityManager.flush();
+        Long id = saved.getId();
+        entityManager.clear();
+
+        AtivoCarteira reloaded = repository.findById(id).orElseThrow();
+        assertThat(reloaded.getTaxaContratada()).isEqualByComparingTo("0.0001");
+        assertThat(reloaded.getQuantidade()).isEqualByComparingTo("0.1234");
+        assertThat(reloaded.getPrecoCompra()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    void atualizaBancoV2SemPerderAtivoCotacaoOuAlerta() throws Exception {
+        String schema = "tesouro_upgrade_" + UUID.randomUUID().toString().replace("-", "");
+        Flyway v2 = flywayForSchema(schema).target("2").load();
+        v2.migrate();
+
+        try {
+            try (var connection = DriverManager.getConnection(
+                    POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+                connection.setSchema(schema);
+                try (var statement = connection.createStatement()) {
+                    statement.executeUpdate("""
+                            INSERT INTO ativos_carteira (id, nome_titulo, data_compra, taxa_contratada,
+                                preco_compra, quantidade)
+                            VALUES (7, 'Tesouro Selic - 2031-03-01', DATE '2026-01-10', 0.10, 100.00, 0.25)
+                            """);
+                    statement.executeUpdate("""
+                            INSERT INTO cotacoes_diarias (id, nome_ativo, data_cotacao, taxa_atual,
+                                preco_compra_atual, preco_resgate_atual)
+                            VALUES (8, 'Tesouro Selic - 2031-03-01', DATE '2026-10-02', 0.10, 104.00, 105.00)
+                            """);
+                    statement.executeUpdate("""
+                            INSERT INTO alertas_monitoramento (id, ativo_id, cotacao_id, nome_ativo,
+                                data_cotacao, percentual_observado, regra_aplicada, limite_percentual,
+                                criado_em, lido)
+                            VALUES (9, 7, 8, 'Tesouro Selic - 2031-03-01', DATE '2026-10-02',
+                                5.00, 'VALORIZACAO_ACIMA_LIMITE', 5.00, TIMESTAMP '2026-10-02 10:00:00', FALSE)
+                            """);
+                }
+            }
+
+            Flyway latest = flywayForSchema(schema).load();
+            latest.migrate();
+
+            try (var connection = DriverManager.getConnection(
+                    POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())) {
+                connection.setSchema(schema);
+                try (var statement = connection.createStatement()) {
+                    assertThat(count(statement, "ativos_carteira")).isEqualTo(1);
+                    assertThat(count(statement, "cotacoes_diarias")).isEqualTo(1);
+                    assertThat(count(statement, "alertas_monitoramento")).isEqualTo(1);
+                    try (var result = statement.executeQuery("""
+                            SELECT a.quantidade, al.ativo_id, al.cotacao_id
+                            FROM ativos_carteira a
+                            JOIN alertas_monitoramento al ON al.ativo_id = a.id
+                            JOIN cotacoes_diarias c ON c.id = al.cotacao_id
+                            WHERE a.id = 7 AND c.id = 8
+                            """)) {
+                        assertThat(result.next()).isTrue();
+                        assertThat(result.getBigDecimal("quantidade")).isEqualByComparingTo("0.25");
+                        assertThat(result.getLong("ativo_id")).isEqualTo(7);
+                        assertThat(result.getLong("cotacao_id")).isEqualTo(8);
+                    }
+                }
+            }
+        } finally {
+            flywayForSchema(schema).load().clean();
+        }
+    }
+
+    private FluentConfiguration flywayForSchema(String schema) {
+        return Flyway.configure()
+                .dataSource(POSTGRES.getJdbcUrl(), POSTGRES.getUsername(), POSTGRES.getPassword())
+                .schemas(schema)
+                .defaultSchema(schema)
+                .cleanDisabled(false)
+                .locations("classpath:db/migration");
+    }
+
+    private int count(java.sql.Statement statement, String table) throws Exception {
+        try (var result = statement.executeQuery("SELECT COUNT(*) FROM " + table)) {
+            result.next();
+            return result.getInt(1);
+        }
     }
 
     @Test
     void preservaDadosAoRevalidarMigracoesEFazBackupERestauracao() throws Exception {
         AtivoCarteira ativo = repository.save(new AtivoCarteira(null, "Tesouro Selic - 2031-03-01",
-                LocalDate.of(2026, 1, 10), new BigDecimal("0.10"),
-                new BigDecimal("100.00"), new BigDecimal("2.00")));
+                LocalDate.of(2026, 1, 10), new BigDecimal("0.1234"),
+                new BigDecimal("100.00"), new BigDecimal("2.1234")));
         CotacaoDiaria cotacao = cotacaoRepository.save(new CotacaoDiaria(null, ativo.getNomeTitulo(),
                 LocalDate.of(2026, 10, 2), new BigDecimal("0.10"),
                 new BigDecimal("104.00"), new BigDecimal("105.00")));
@@ -111,7 +210,10 @@ class PostgresMigrationTest {
                             "--spring.flyway.enabled=true")) {
                 AtivoCarteiraRepository repositoryAposReinicio =
                         application.getBean(AtivoCarteiraRepository.class);
-                assertThat(repositoryAposReinicio.findById(ativoId)).isPresent();
+                AtivoCarteira ativoAposReinicio = repositoryAposReinicio.findById(ativoId).orElseThrow();
+                assertThat(ativoAposReinicio.getTaxaContratada()).isEqualByComparingTo("0.1234");
+                assertThat(ativoAposReinicio.getQuantidade()).isEqualByComparingTo("2.1234");
+                assertThat(ativoAposReinicio.getPrecoCompra()).isEqualByComparingTo("100.00");
             }
         }
     }

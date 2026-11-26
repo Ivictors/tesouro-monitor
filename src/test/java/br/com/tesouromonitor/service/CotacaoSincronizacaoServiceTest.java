@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -71,6 +72,39 @@ class CotacaoSincronizacaoServiceTest {
         assertEquals(1, resultado.posicoesCorrespondentes());
         assertFalse(resultado.emAndamento());
         verify(monitoramento).avaliarAgio(ativo, cotacao);
+    }
+
+    @Test
+    void registraFalhaParcialContinuaComOsProximosAtivosEPermiteNovaTentativa() {
+        AtivoCarteira segundoAtivo = new AtivoCarteira(2L, ativo.getNomeTitulo(), LocalDate.of(2026, 2, 10),
+                new BigDecimal("0.11"), new BigDecimal("19800.00"), new BigDecimal("0.10"));
+        when(cliente.buscarTitulos()).thenReturn(Mono.just(new TesouroResponseDTO(List.of(titulo))));
+        when(cotacoes.salvarCotacoes(List.of(titulo))).thenReturn(1);
+        when(ativos.findAll()).thenReturn(List.of(ativo, segundoAtivo));
+        when(cotacoes.cotacaoMaisRecente(ativo.getNomeTitulo()))
+                .thenReturn(Optional.of(cotacao), Optional.of(cotacao));
+        when(monitoramento.avaliarAgio(ativo, cotacao))
+                .thenThrow(new IllegalStateException("Falha simulada"))
+                .thenReturn(Optional.empty());
+
+        var parcial = service.sincronizar();
+
+        assertTrue(parcial.sucesso());
+        assertFalse(parcial.monitoramentoCompleto());
+        assertEquals(1, parcial.avaliacoesFalhas());
+        assertEquals(1, parcial.cotacoesPersistidas());
+        assertEquals(2, parcial.posicoesCorrespondentes());
+        assertTrue(parcial.mensagem().contains("monitoramento ficou incompleto"));
+        assertEquals(parcial, service.statusAtual());
+        verify(monitoramento).avaliarAgio(segundoAtivo, cotacao);
+
+        var novaTentativa = service.sincronizar();
+
+        assertTrue(novaTentativa.sucesso());
+        assertTrue(novaTentativa.monitoramentoCompleto());
+        assertEquals(0, novaTentativa.avaliacoesFalhas());
+        assertEquals(1, novaTentativa.cotacoesPersistidas());
+        verify(monitoramento, times(2)).avaliarAgio(ativo, cotacao);
     }
 
     @Test

@@ -1,6 +1,7 @@
 package br.com.tesouromonitor.service;
 
 import br.com.tesouromonitor.domain.CotacaoDiaria;
+import br.com.tesouromonitor.dto.TituloDisponivelResponseDTO;
 import br.com.tesouromonitor.dto.TituloDTO;
 import br.com.tesouromonitor.repository.CotacaoDiariaRepository;
 import java.util.List;
@@ -41,6 +42,13 @@ public class CotacaoDiariaService {
     @Transactional(readOnly = true)
     public Optional<CotacaoDiaria> cotacaoMaisRecente(String nomeAtivo) {
         return repository.findTopByNomeAtivoOrderByDataCotacaoDesc(nomeAtivo);
+    }
+
+    @Transactional(readOnly = true)
+    public List<TituloDisponivelResponseDTO> titulosDisponiveis() {
+        return repository.findTitulosDaDataBaseMaisRecente().stream()
+                .map(TituloDisponivelResponseDTO::new)
+                .toList();
     }
 
     @Transactional(readOnly = true)
