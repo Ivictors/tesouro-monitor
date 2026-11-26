@@ -14,9 +14,13 @@ import java.net.InetSocketAddress;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.concurrent.atomic.AtomicReference;
+import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -116,6 +120,40 @@ class TesouroCsvWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.valorAtualEstimado").value(210.00));
     }
 
+    @ParameterizedTest(name = "{0}")
+    @MethodSource("csvsInvalidos")
+    void csvInvalidoNaoAlteraCotacoesNemAlertasPersistidos(String descricao, String csv) throws Exception {
+        cadastrarAtivo();
+        sincronizarComSucesso();
+
+        var cotacaoAnterior = cotacaoRepository.findAll().getFirst();
+        var alertaAnterior = alertaRepository.findAll().getFirst();
+        corpoCsv.set(csv);
+
+        mockMvc.perform(post("/api/sincronizacao"))
+                .andExpect(status().isBadGateway())
+                .andExpect(jsonPath("$.sucesso").value(false))
+                .andExpect(jsonPath("$.cotacoesPersistidas").value(0));
+
+        org.assertj.core.api.Assertions.assertThat(cotacaoRepository.findAll())
+                .singleElement()
+                .satisfies(cotacao -> {
+                    org.assertj.core.api.Assertions.assertThat(cotacao.getId()).isEqualTo(cotacaoAnterior.getId());
+                    org.assertj.core.api.Assertions.assertThat(cotacao.getPrecoResgateAtual())
+                            .isEqualByComparingTo("105.00");
+                });
+        org.assertj.core.api.Assertions.assertThat(alertaRepository.findAll())
+                .singleElement()
+                .satisfies(alerta -> {
+                    org.assertj.core.api.Assertions.assertThat(alerta.getId()).isEqualTo(alertaAnterior.getId());
+                    org.assertj.core.api.Assertions.assertThat(alerta.getPercentualObservado())
+                            .isEqualByComparingTo("5.00");
+                });
+        mockMvc.perform(get("/api/ativos/resumo"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.valorAtualEstimado").value(210.00));
+    }
+
     private void cadastrarAtivo() throws Exception {
         mockMvc.perform(post("/api/ativos")
                         .contentType(MediaType.APPLICATION_JSON)
@@ -132,6 +170,20 @@ class TesouroCsvWorkflowIntegrationTest {
                 .andExpect(jsonPath("$.sucesso").value(true))
                 .andExpect(jsonPath("$.cotacoesPersistidas").value(1))
                 .andExpect(jsonPath("$.posicoesCorrespondentes").value(1));
+    }
+
+    private static Stream<Arguments> csvsInvalidos() {
+        String cabecalho = "Tipo Titulo;Data Vencimento;Data Base;Taxa Compra Manha;Taxa Venda Manha;"
+                + "PU Compra Manha;PU Venda Manha;PU Base Manha";
+        return Stream.of(
+                Arguments.of("resposta HTTP 200 sem corpo", ""),
+                Arguments.of("header obrigatório ausente",
+                        "Data Vencimento;Data Base;Taxa Compra Manha;Taxa Venda Manha;PU Compra Manha;"
+                                + "PU Venda Manha;PU Base Manha\n01/03/2031;02/10/2026;0,09;0,10;104,00;105,00;104,00"),
+                Arguments.of("valor obrigatório ausente",
+                        cabecalho + "\nTesouro Selic;01/03/2031;02/10/2026;0,09;0,10;104,00;105,00;"),
+                Arguments.of("aspas não fechadas",
+                        cabecalho + "\n\"Tesouro Selic;01/03/2031;02/10/2026;0,09;0,10;104,00;105,00;104,00"));
     }
 
     private static HttpServer iniciarServidor() {
